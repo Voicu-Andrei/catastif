@@ -1,0 +1,210 @@
+// Tipuri partajate între procesul principal (main) și interfață (renderer).
+// IMPORTANT: toate valorile monetare sunt stocate în BANI (întreg = lei × 100).
+
+export type TipClient = 'firma' | 'persoana'
+export type StareComanda = 'oferta' | 'comanda' | 'anulata'
+export type EntitateTip = 'produs' | 'client' | 'furnizor' | 'comanda' | 'achizitie'
+export type StareAnaf = 'placeholder' | 'de_trimis' | 'trimisa' | 'validata' | 'respinsa'
+
+// ---------------------------------------------------------------------------
+// Setări (stocate ca pereche cheie/valoare; aici expunem forma tipată)
+// ---------------------------------------------------------------------------
+export interface Setari {
+  nume_firma: string
+  cui: string
+  nr_reg_com: string
+  adresa: string
+  judet: string
+  oras: string
+  cod_postal: string
+  iban: string
+  telefon: string
+  email: string
+  logo_path: string | null
+  cota_tva_implicita: number // ex. 21
+  serie_factura: string
+  numar_factura_curent: number
+  backup_folder: string | null
+  auto_backup: boolean
+  prag_stoc_implicit: number
+  versiune_ignorata: string | null
+}
+
+// ---------------------------------------------------------------------------
+// Entități
+// ---------------------------------------------------------------------------
+export interface Furnizor {
+  id: number
+  nume: string
+  cui: string | null
+  nr_reg_com: string | null
+  adresa: string | null
+  telefon: string | null
+  email: string | null
+  note: string | null
+  creat_la: string
+  actualizat_la: string
+}
+export type FurnizorInput = Omit<Furnizor, 'id' | 'creat_la' | 'actualizat_la'>
+
+export interface Produs {
+  id: number
+  nume: string
+  descriere: string | null
+  unitate_masura: string
+  pret_referinta: number | null // bani
+  cota_tva: number
+  track_stock: boolean
+  stoc_curent: number
+  prag_stoc: number | null
+  furnizor_id: number | null
+  creat_la: string
+  actualizat_la: string
+}
+export type ProdusInput = Omit<Produs, 'id' | 'creat_la' | 'actualizat_la'>
+
+export interface Client {
+  id: number
+  tip: TipClient
+  nume: string
+  cui: string | null
+  nr_reg_com: string | null
+  cnp: string | null
+  adresa: string | null
+  judet: string | null
+  oras: string | null
+  cod_postal: string | null
+  telefon: string | null
+  email: string | null
+  note: string | null
+  creat_la: string
+  actualizat_la: string
+}
+export type ClientInput = Omit<Client, 'id' | 'creat_la' | 'actualizat_la'>
+
+export interface LinieComanda {
+  id: number
+  comanda_id: number
+  produs_id: number | null
+  descriere: string
+  cantitate: number
+  unitate_masura: string
+  cost_unitar: number // bani
+  pret_unitar: number // bani
+  cota_tva: number
+  pozitie: number
+}
+export type LinieComandaInput = Omit<LinieComanda, 'id' | 'comanda_id'>
+
+export interface Comanda {
+  id: number
+  numar: string | null
+  client_id: number | null
+  stare: StareComanda
+  data_creare: string
+  data_acceptare: string | null
+  data_anulare: string | null
+  total_fara_tva: number // bani
+  total_tva: number
+  total: number
+  achitat: number
+  observatii: string | null
+  factura_id: number | null
+  creat_la: string
+  actualizat_la: string
+}
+
+// Comandă cu informații derivate pentru afișare în liste
+export interface ComandaCuExtra extends Comanda {
+  client_nume: string | null
+  rest_de_plata: number // bani (total - achitat)
+  profit: number // bani
+}
+
+export interface ComandaDetaliu extends ComandaCuExtra {
+  linii: LinieComanda[]
+}
+
+export interface LinieAchizitie {
+  id: number
+  achizitie_id: number
+  produs_id: number | null
+  descriere: string
+  cantitate: number
+  unitate_masura: string
+  cost_unitar: number // bani
+  data: string
+}
+export type LinieAchizitieInput = Omit<LinieAchizitie, 'id' | 'achizitie_id'>
+
+export interface Achizitie {
+  id: number
+  furnizor_id: number | null
+  data: string
+  numar_document: string | null
+  total: number // bani
+  observatii: string | null
+  creat_la: string
+}
+
+export interface Factura {
+  id: number
+  serie: string | null
+  numar: number | null
+  comanda_id: number | null
+  client_id: number | null
+  data_emitere: string | null
+  data_scadenta: string | null
+  total_fara_tva: number
+  total_tva: number
+  total: number
+  moneda: string
+  stare_anaf: StareAnaf
+  xml_path: string | null
+  creat_la: string
+}
+
+export interface Fisier {
+  id: number
+  nume: string
+  cale: string
+  tip: string | null
+  marime: number | null
+  entitate_tip: EntitateTip
+  entitate_id: number
+  creat_la: string
+}
+
+// ---------------------------------------------------------------------------
+// Rezultate operațiuni
+// ---------------------------------------------------------------------------
+export interface BackupResult {
+  ok: boolean
+  cale?: string
+  mesaj?: string
+}
+
+export interface RezultatActualizare {
+  disponibila: boolean
+  versiune?: string
+}
+
+// ---------------------------------------------------------------------------
+// Suprafața API expusă în renderer prin preload (window.api)
+// Crește pe parcursul etapelor de dezvoltare.
+// ---------------------------------------------------------------------------
+export interface CatastifApi {
+  app: {
+    getVersion(): Promise<string>
+  }
+  setari: {
+    get(): Promise<Setari>
+    save(patch: Partial<Setari>): Promise<Setari>
+  }
+  backup: {
+    exportNow(): Promise<BackupResult>
+    importFrom(): Promise<BackupResult>
+    chooseFolder(): Promise<string | null>
+    openFolder(): Promise<void>
+  }
+}

@@ -1,0 +1,46 @@
+appId: ro.catastif.app
+productName: Catastif
+copyright: Copyright © 2026 Catastif
+
+directories:
+  buildResources: build
+  output: release
+
+files:
+  - out/**/*
+  - package.json
+
+asarUnpack:
+  - '**/*.node'
+  - node_modules/better-sqlite3/**
+
+# Native deps rebuilt for Electron via electron-builder
+npmRebuild: true
+
+win:
+  target:
+    - nsis
+  artifactName: ${productName}-Setup-${version}.${ext}
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  deleteAppDataOnUninstall: false
+
+mac:
+  target:
+    - dmg
+  category: public.app-category.business
+  artifactName: ${productName}-${version}.${ext}
+
+linux:
+  target:
+    - AppImage
+  category: Office
+
+# Update feed: GitHub Releases (public repo). electron-updater reads this.
+publish:
+  provider: github
+  owner: voicu-andrei
+  repo: catastif
