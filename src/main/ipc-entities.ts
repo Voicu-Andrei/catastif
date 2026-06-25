@@ -1,5 +1,6 @@
 import { ipcMain } from 'electron'
 import type {
+  AchizitieInput,
   ClientInput,
   ComandaInput,
   FurnizorInput,
@@ -37,6 +38,13 @@ import {
   inregistreazaPlata,
   deleteComanda
 } from './db/repos/comenzi'
+import {
+  listAchizitii,
+  getAchizitie,
+  createAchizitie,
+  updateAchizitie,
+  deleteAchizitie
+} from './db/repos/achizitii'
 
 export function registerEntitiesIpc(): void {
   // --- Furnizori ---
@@ -71,4 +79,13 @@ export function registerEntitiesIpc(): void {
   ipcMain.handle('comenzi:anuleaza', (_e, id: number) => anuleazaComanda(id))
   ipcMain.handle('comenzi:plata', (_e, id: number, suma: number) => inregistreazaPlata(id, suma))
   ipcMain.handle('comenzi:delete', (_e, id: number) => deleteComanda(id))
+
+  // --- Achiziții ---
+  ipcMain.handle('achizitii:list', () => listAchizitii())
+  ipcMain.handle('achizitii:get', (_e, id: number) => getAchizitie(id))
+  ipcMain.handle('achizitii:create', (_e, input: AchizitieInput) => createAchizitie(input))
+  ipcMain.handle('achizitii:update', (_e, id: number, input: AchizitieInput) =>
+    updateAchizitie(id, input)
+  )
+  ipcMain.handle('achizitii:delete', (_e, id: number) => deleteAchizitie(id))
 }

@@ -10,15 +10,22 @@ function map(r: RandProdus | undefined): Produs | undefined {
   return { ...r, track_stock: !!r.track_stock }
 }
 
+const SELECT = `
+  SELECT p.*, (
+    SELECT la.cost_unitar FROM linii_achizitie la
+    WHERE la.produs_id = p.id ORDER BY la.data DESC, la.id DESC LIMIT 1
+  ) AS ultim_cost
+  FROM produse p`
+
 export function listProduse(): Produs[] {
   const rows = getDb()
-    .prepare('SELECT * FROM produse ORDER BY nume COLLATE NOCASE')
+    .prepare(`${SELECT} ORDER BY p.nume COLLATE NOCASE`)
     .all() as RandProdus[]
   return rows.map((r) => map(r)!)
 }
 
 export function getProdus(id: number): Produs | undefined {
-  return map(getDb().prepare('SELECT * FROM produse WHERE id = ?').get(id) as RandProdus | undefined)
+  return map(getDb().prepare(`${SELECT} WHERE p.id = ?`).get(id) as RandProdus | undefined)
 }
 
 function bind(input: ProdusInput): Record<string, unknown> {

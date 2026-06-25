@@ -1,5 +1,6 @@
 import type { Database } from 'better-sqlite3'
 import { getDb } from '../connection'
+import { ajusteazaStoc } from './stoc'
 import { calcComanda } from '@shared/calc'
 import type {
   ComandaCuExtra,
@@ -130,25 +131,44 @@ export function updateComanda(id: number, input: ComandaInput): ComandaDetaliu {
   return getComanda(id)!
 }
 
+// Aplică efectul vânzării asupra stocului (semn -1 la confirmare, +1 la anulare).
+function aplicaStocComanda(db: Database, comandaId: number, semn: number): void {
+  const linii = db
+    .prepare('SELECT produs_id, cantitate FROM linii_comanda WHERE comanda_id = ?')
+    .all(comandaId) as { produs_id: number | null; cantitate: number }[]
+  for (const l of linii) ajusteazaStoc(db, l.produs_id, semn * l.cantitate)
+}
+
 export function acceptaComanda(id: number): ComandaDetaliu {
-  getDb()
-    .prepare(
-      `UPDATE comenzi SET stare='comanda', data_acceptare=datetime('now'),
-        actualizat_la=datetime('now')
-       WHERE id=? AND stare='oferta'`
-    )
-    .run(id)
+  const db = getDb()
+  const tx = db.transaction(() => {
+    const info = db
+      .prepare(
+        `UPDATE comenzi SET stare='comanda', data_acceptare=datetime('now'),
+          actualizat_la=datetime('now')
+         WHERE id=? AND stare='oferta'`
+      )
+      .run(id)
+    if (info.changes > 0) aplicaStocComanda(db, id, -1) // vânzarea scade stocul
+  })
+  tx()
   return getComanda(id)!
 }
 
 export function anuleazaComanda(id: number): ComandaDetaliu {
-  getDb()
-    .prepare(
+  const db = getDb()
+  const tx = db.transaction(() => {
+    const c = db.prepare('SELECT stare FROM comenzi WHERE id=?').get(id) as
+      | { stare: StareComanda }
+      | undefined
+    db.prepare(
       `UPDATE comenzi SET stare='anulata', data_anulare=datetime('now'),
         actualizat_la=datetime('now')
        WHERE id=?`
-    )
-    .run(id)
+    ).run(id)
+    if (c?.stare === 'comanda') aplicaStocComanda(db, id, 1) // restituie stocul
+  })
+  tx()
   return getComanda(id)!
 }
 
@@ -161,13 +181,17 @@ export function inregistreazaPlata(id: number, suma: number): ComandaDetaliu {
   if (!c) throw new Error('Comanda nu există.')
   const nouAchitat = Math.max(0, c.achitat + Math.round(suma))
   const devineComanda = c.stare === 'oferta' && nouAchitat > 0
-  db.prepare(
-    `UPDATE comenzi SET achitat=@achitat,
-       stare = CASE WHEN @devine = 1 THEN 'comanda' ELSE stare END,
-       data_acceptare = CASE WHEN @devine = 1 AND data_acceptare IS NULL THEN datetime('now') ELSE data_acceptare END,
-       actualizat_la = datetime('now')
-     WHERE id=@id`
-  ).run({ id, achitat: nouAchitat, devine: devineComanda ? 1 : 0 })
+  const tx = db.transaction(() => {
+    db.prepare(
+      `UPDATE comenzi SET achitat=@achitat,
+         stare = CASE WHEN @devine = 1 THEN 'comanda' ELSE stare END,
+         data_acceptare = CASE WHEN @devine = 1 AND data_acceptare IS NULL THEN datetime('now') ELSE data_acceptare END,
+         actualizat_la = datetime('now')
+       WHERE id=@id`
+    ).run({ id, achitat: nouAchitat, devine: devineComanda ? 1 : 0 })
+    if (devineComanda) aplicaStocComanda(db, id, -1) // vânzarea scade stocul
+  })
+  tx()
   return getComanda(id)!
 }
 

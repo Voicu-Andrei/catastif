@@ -58,10 +58,11 @@ export interface Produs {
   stoc_curent: number
   prag_stoc: number | null
   furnizor_id: number | null
+  ultim_cost: number | null // bani — cel mai recent cost de achiziție (calculat)
   creat_la: string
   actualizat_la: string
 }
-export type ProdusInput = Omit<Produs, 'id' | 'creat_la' | 'actualizat_la'>
+export type ProdusInput = Omit<Produs, 'id' | 'creat_la' | 'actualizat_la' | 'ultim_cost'>
 
 export interface Client {
   id: number
@@ -155,6 +156,23 @@ export interface Achizitie {
   creat_la: string
 }
 
+export interface AchizitieCuExtra extends Achizitie {
+  furnizor_nume: string | null
+  nr_linii: number
+}
+
+export interface AchizitieDetaliu extends AchizitieCuExtra {
+  linii: LinieAchizitie[]
+}
+
+export interface AchizitieInput {
+  furnizor_id: number | null
+  data: string
+  numar_document: string | null
+  observatii: string | null
+  linii: LinieAchizitieInput[]
+}
+
 export interface Factura {
   id: number
   serie: string | null
@@ -244,6 +262,13 @@ export interface CatastifApi {
     accepta(id: number): Promise<ComandaDetaliu>
     anuleaza(id: number): Promise<ComandaDetaliu>
     plata(id: number, suma: number): Promise<ComandaDetaliu>
+    delete(id: number): Promise<void>
+  }
+  achizitii: {
+    list(): Promise<AchizitieCuExtra[]>
+    get(id: number): Promise<AchizitieDetaliu | undefined>
+    create(input: AchizitieInput): Promise<AchizitieDetaliu>
+    update(id: number, input: AchizitieInput): Promise<AchizitieDetaliu>
     delete(id: number): Promise<void>
   }
 }

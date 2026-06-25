@@ -162,6 +162,10 @@ export function ComandaEditor(): React.JSX.Element {
     if (p.pret_referinta != null && (cur.pret_lei === '' || Number(cur.pret_lei) === 0)) {
       form.setFieldValue(`linii.${idx}.pret_lei`, baniToLei(p.pret_referinta))
     }
+    // Pre-completează costul cu ultimul cost de achiziție, dacă există.
+    if (p.ultim_cost != null && (cur.cost_lei === '' || Number(cur.cost_lei) === 0)) {
+      form.setFieldValue(`linii.${idx}.cost_lei`, baniToLei(p.ultim_cost))
+    }
   }
 
   function construiestePayload(): ComandaInput {
