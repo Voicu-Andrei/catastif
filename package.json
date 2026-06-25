@@ -14,7 +14,8 @@
     "typecheck": "npm run typecheck:node && npm run typecheck:web",
     "postinstall": "electron-builder install-app-deps",
     "pack:dir": "npm run build && electron-builder --dir",
-    "dist": "npm run build && electron-builder"
+    "dist": "npm run build && electron-builder",
+    "downloads": "node scripts/downloads.mjs"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

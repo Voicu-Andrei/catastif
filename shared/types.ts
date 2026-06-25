@@ -125,6 +125,14 @@ export interface ComandaDetaliu extends ComandaCuExtra {
   linii: LinieComanda[]
 }
 
+// Date pentru creare/actualizare comandă (starea și plățile se gestionează separat).
+export interface ComandaInput {
+  numar: string | null
+  client_id: number | null
+  observatii: string | null
+  linii: LinieComandaInput[]
+}
+
 export interface LinieAchizitie {
   id: number
   achizitie_id: number
@@ -226,6 +234,16 @@ export interface CatastifApi {
     get(id: number): Promise<Produs | undefined>
     create(input: ProdusInput): Promise<Produs>
     update(id: number, input: ProdusInput): Promise<Produs>
+    delete(id: number): Promise<void>
+  }
+  comenzi: {
+    list(stare?: StareComanda): Promise<ComandaCuExtra[]>
+    get(id: number): Promise<ComandaDetaliu | undefined>
+    create(input: ComandaInput): Promise<ComandaDetaliu>
+    update(id: number, input: ComandaInput): Promise<ComandaDetaliu>
+    accepta(id: number): Promise<ComandaDetaliu>
+    anuleaza(id: number): Promise<ComandaDetaliu>
+    plata(id: number, suma: number): Promise<ComandaDetaliu>
     delete(id: number): Promise<void>
   }
 }

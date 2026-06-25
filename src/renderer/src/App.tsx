@@ -6,6 +6,7 @@ import { Produse } from './routes/Produse'
 import { Clienti } from './routes/Clienti'
 import { Furnizori } from './routes/Furnizori'
 import { Comenzi } from './routes/Comenzi'
+import { ComandaEditor } from './routes/ComandaEditor'
 import { Achizitii } from './routes/Achizitii'
 import { Facturi } from './routes/Facturi'
 import { Rapoarte } from './routes/Rapoarte'
@@ -30,6 +31,7 @@ export function App(): React.JSX.Element {
             <Route path="/clienti" element={<Clienti />} />
             <Route path="/furnizori" element={<Furnizori />} />
             <Route path="/comenzi" element={<Comenzi />} />
+            <Route path="/comenzi/:id" element={<ComandaEditor />} />
             <Route path="/achizitii" element={<Achizitii />} />
             <Route path="/facturi" element={<Facturi />} />
             <Route path="/rapoarte" element={<Rapoarte />} />

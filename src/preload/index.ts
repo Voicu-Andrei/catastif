@@ -35,6 +35,16 @@ const api: CatastifApi = {
     create: (input) => ipcRenderer.invoke('produse:create', input),
     update: (id, input) => ipcRenderer.invoke('produse:update', id, input),
     delete: (id) => ipcRenderer.invoke('produse:delete', id)
+  },
+  comenzi: {
+    list: (stare) => ipcRenderer.invoke('comenzi:list', stare),
+    get: (id) => ipcRenderer.invoke('comenzi:get', id),
+    create: (input) => ipcRenderer.invoke('comenzi:create', input),
+    update: (id, input) => ipcRenderer.invoke('comenzi:update', id, input),
+    accepta: (id) => ipcRenderer.invoke('comenzi:accepta', id),
+    anuleaza: (id) => ipcRenderer.invoke('comenzi:anuleaza', id),
+    plata: (id, suma) => ipcRenderer.invoke('comenzi:plata', id, suma),
+    delete: (id) => ipcRenderer.invoke('comenzi:delete', id)
   }
 }
 
