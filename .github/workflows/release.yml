@@ -1,0 +1,40 @@
+name: Release
+
+# Construiește instalatoarele și le publică pe pagina Releases la fiecare tag „v*”.
+# Exemplu: git tag v0.1.0 && git push origin v0.1.0
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalează dependențele
+        run: npm ci
+
+      - name: Compilează (electron-vite)
+        run: npm run build
+
+      - name: Construiește și publică instalatoarele
+        run: npx electron-builder --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # v1 este nesemnat — nu încerca semnarea pe macOS.
+          CSC_IDENTITY_AUTO_DISCOVERY: false

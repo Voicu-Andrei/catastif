@@ -75,6 +75,14 @@ const api: CatastifApi = {
   pdf: {
     comanda: (id) => ipcRenderer.invoke('pdf:comanda', id),
     raport: (an) => ipcRenderer.invoke('pdf:raport', an)
+  },
+  update: {
+    onAvailable: (cb) => {
+      const listener = (_e: unknown, data: { version: string }): void => cb(data)
+      ipcRenderer.on('update:available', listener)
+      return () => ipcRenderer.removeListener('update:available', listener)
+    },
+    respond: (raspuns) => ipcRenderer.invoke('update:response', raspuns)
   }
 }
 

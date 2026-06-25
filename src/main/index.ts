@@ -4,6 +4,7 @@ import { getDb, closeDb } from './db/connection'
 import { getSetari } from './db/repos/setari'
 import { backupToSync, rotateBackups } from './backup'
 import { registerIpc } from './ipc'
+import { initAutoUpdate } from './updater'
 
 let mainWindow: BrowserWindow | null = null
 let didShutdown = false
@@ -46,6 +47,7 @@ app.whenReady().then(() => {
   registerIpc()
   Menu.setApplicationMenu(null)
   createWindow()
+  if (mainWindow) initAutoUpdate(mainWindow)
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

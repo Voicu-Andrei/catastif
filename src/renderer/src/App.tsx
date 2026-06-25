@@ -12,12 +12,14 @@ import { AchizitieEditor } from './routes/AchizitieEditor'
 import { Facturi } from './routes/Facturi'
 import { Rapoarte } from './routes/Rapoarte'
 import { Setari } from './routes/Setari'
+import { UpdateNotifier } from './components/UpdateNotifier'
 
 export function App(): React.JSX.Element {
   const location = useLocation()
 
   return (
     <Shell>
+      <UpdateNotifier />
       <AnimatePresence mode="wait">
         <motion.div
           key={location.pathname}

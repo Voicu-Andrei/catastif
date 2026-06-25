@@ -10,18 +10,28 @@ calculatorul proprietarului; fără cont, fără cloud, fără server.
 
 ## Stadiu (etape de dezvoltare)
 
-- **M0 — schelet + backup** ✅ aplicație care pornește, shell Mantine în română, bază de date
-  SQLite cu migrații, pagina **Setări** funcțională, backup/restaurare (manual + automat la
-  închidere).
-- M1 — date de bază (Produse, Clienți, Furnizori)
-- M2 — comenzi cu linii (cost + preț + profit), ciclu Ofertă → Comandă → Anulată
-- M3 — achiziții + stoc opțional
-- M4 — tablou de bord + căutare globală + atașamente fișiere
-- M5 — documente PDF (oferte/comenzi) + rapoarte (CSV / Excel / PDF + grafice)
-- M6 — împachetare + actualizare automată (GitHub Releases) + CI
+- **M0 — schelet + backup** ✅ shell Mantine în română, SQLite cu migrații, Setări, backup/restaurare.
+- **M1 — date de bază** ✅ Produse, Clienți, Furnizori (CRUD, căutare, atașamente).
+- **M2 — comenzi** ✅ linii cu cost + preț + profit, ciclu Ofertă → Comandă → Anulată, plăți.
+- **M3 — achiziții + stoc** ✅ istoric costuri, stoc opțional pe produs.
+- **M4 — tablou de bord** ✅ date live, căutare globală, atașamente de fișiere.
+- **M5 — documente & rapoarte** ✅ PDF oferte/comenzi, rapoarte cu grafice, export CSV/Excel/PDF.
+- **M6 — împachetare & actualizare** ✅ electron-builder, actualizare automată (GitHub Releases), CI.
 
 e-Factura este **amânată**: câmpurile fiscale există deja în schemă, dar generarea XML este un
 substituent („în curând”). Aplicația **nu** gestionează niciodată datele de autentificare ANAF.
+
+## Cum lansezi o versiune
+
+1. Actualizează `version` în `package.json`.
+2. Creează și împinge un tag: `git tag v0.1.0 && git push origin v0.1.0`.
+3. GitHub Actions (`.github/workflows/release.yml`) construiește instalatoarele pe Windows și macOS
+   și le publică pe pagina **Releases**. Aplicațiile instalate verifică actualizările la pornire.
+4. Vezi câte descărcări ai: `npm run downloads`.
+
+> Instalatoarele v1 sunt **nesemnate** — la prima instalare Windows poate afișa un avertisment
+> SmartScreen („Mai multe informații → Executați oricum”). Actualizarea automată funcționează pe
+> Windows; pe macOS necesită semnare (de adăugat ulterior).
 
 ## Tehnologii
 

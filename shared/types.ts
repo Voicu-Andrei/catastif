@@ -357,4 +357,8 @@ export interface CatastifApi {
     comanda(id: number): Promise<BackupResult>
     raport(an: number): Promise<BackupResult>
   }
+  update: {
+    onAvailable(cb: (info: { version: string }) => void): () => void
+    respond(raspuns: 'da' | 'nu' | 'skip'): Promise<void>
+  }
 }
