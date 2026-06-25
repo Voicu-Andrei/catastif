@@ -1,4 +1,4 @@
-import { AppShell, Group, NavLink, ScrollArea, Text, TextInput, ThemeIcon, Box } from '@mantine/core'
+import { AppShell, Group, NavLink, ScrollArea, Text, ThemeIcon, Box } from '@mantine/core'
 import { Link, useLocation } from 'react-router-dom'
 import {
   IconLayoutDashboard,
@@ -10,11 +10,11 @@ import {
   IconFileInvoice,
   IconChartBar,
   IconSettings,
-  IconSearch,
   IconBook2
 } from '@tabler/icons-react'
 import type { ReactNode } from 'react'
 import { ro } from '../i18n/ro'
+import { GlobalSearch } from './GlobalSearch'
 
 interface NavItem {
   to: string
@@ -52,14 +52,7 @@ export function Shell({ children }: { children: ReactNode }): React.JSX.Element 
               {ro.appName}
             </Text>
           </Group>
-          <TextInput
-            placeholder={ro.comun.cauta}
-            leftSection={<IconSearch size={16} />}
-            w={360}
-            radius="md"
-            disabled
-            description="Căutarea globală sosește în curând"
-          />
+          <GlobalSearch />
         </Group>
       </AppShell.Header>
 

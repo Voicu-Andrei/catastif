@@ -52,6 +52,18 @@ const api: CatastifApi = {
     create: (input) => ipcRenderer.invoke('achizitii:create', input),
     update: (id, input) => ipcRenderer.invoke('achizitii:update', id, input),
     delete: (id) => ipcRenderer.invoke('achizitii:delete', id)
+  },
+  dashboard: {
+    get: () => ipcRenderer.invoke('dashboard:get')
+  },
+  search: {
+    global: (q) => ipcRenderer.invoke('search:global', q)
+  },
+  fisiere: {
+    list: (tip, id) => ipcRenderer.invoke('fisiere:list', tip, id),
+    attach: (tip, id) => ipcRenderer.invoke('fisiere:attach', tip, id),
+    open: (id) => ipcRenderer.invoke('fisiere:open', id),
+    delete: (id) => ipcRenderer.invoke('fisiere:delete', id)
   }
 }
 

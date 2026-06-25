@@ -22,6 +22,7 @@ import { IconPencil, IconTrash, IconUsers } from '@tabler/icons-react'
 import type { Client, ClientInput, TipClient } from '@shared/types'
 import { PageHeader, ComingSoon } from '../components/Placeholder'
 import { ListToolbar } from '../components/ListToolbar'
+import { FileAttachments } from '../components/FileAttachments'
 import { useList } from '../lib/useList'
 
 const EMPTY: ClientInput = {
@@ -249,6 +250,11 @@ export function Clienti(): React.JSX.Element {
             </Group>
           </Stack>
         </form>
+        {editing && (
+          <div style={{ marginTop: 16 }}>
+            <FileAttachments entitateTip="client" entitateId={editing.id} />
+          </div>
+        )}
       </Drawer>
     </>
   )

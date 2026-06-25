@@ -24,6 +24,7 @@ import { IconBox, IconPencil, IconTrash } from '@tabler/icons-react'
 import type { Furnizor, Produs, ProdusInput } from '@shared/types'
 import { PageHeader, ComingSoon } from '../components/Placeholder'
 import { ListToolbar } from '../components/ListToolbar'
+import { FileAttachments } from '../components/FileAttachments'
 import { useList } from '../lib/useList'
 import { baniToLei, leiToBani } from '../lib/money'
 import { formatLei } from '../lib/format'
@@ -312,6 +313,11 @@ export function Produse(): React.JSX.Element {
             </Group>
           </Stack>
         </form>
+        {editing && (
+          <div style={{ marginTop: 16 }}>
+            <FileAttachments entitateTip="produs" entitateId={editing.id} />
+          </div>
+        )}
       </Drawer>
     </>
   )

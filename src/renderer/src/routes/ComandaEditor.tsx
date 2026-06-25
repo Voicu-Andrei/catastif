@@ -37,6 +37,7 @@ import { calcComanda, calcLinie } from '@shared/calc'
 import { baniToLei, leiToBani } from '../lib/money'
 import { formatLei } from '../lib/format'
 import { STARE_META } from '../lib/stare'
+import { FileAttachments } from '../components/FileAttachments'
 
 interface LinieForm {
   produs_id: string | null
@@ -529,6 +530,12 @@ export function ComandaEditor(): React.JSX.Element {
               </>
             )}
           </Card>
+
+          {!esteNou && comandaId != null && (
+            <Box mt="lg">
+              <FileAttachments entitateTip="comanda" entitateId={comandaId} />
+            </Box>
+          )}
         </Grid.Col>
       </Grid>
     </>

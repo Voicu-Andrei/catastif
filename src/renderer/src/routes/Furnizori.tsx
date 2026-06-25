@@ -21,6 +21,7 @@ import { IconPencil, IconTrash, IconBuildingWarehouse } from '@tabler/icons-reac
 import type { Furnizor, FurnizorInput } from '@shared/types'
 import { PageHeader, ComingSoon } from '../components/Placeholder'
 import { ListToolbar } from '../components/ListToolbar'
+import { FileAttachments } from '../components/FileAttachments'
 import { useList } from '../lib/useList'
 
 const EMPTY: FurnizorInput = {
@@ -201,6 +202,11 @@ export function Furnizori(): React.JSX.Element {
             </Group>
           </Stack>
         </form>
+        {editing && (
+          <div style={{ marginTop: 16 }}>
+            <FileAttachments entitateTip="furnizor" entitateId={editing.id} />
+          </div>
+        )}
       </Drawer>
     </>
   )

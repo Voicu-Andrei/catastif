@@ -210,6 +210,31 @@ export interface BackupResult {
   mesaj?: string
 }
 
+export interface ActivitateItem {
+  tip: string // oferta | comanda | anulata | achizitie
+  titlu: string
+  data: string
+  suma: number | null // bani
+  link: string
+}
+
+export interface DashboardData {
+  oferte_in_asteptare: number
+  comenzi_active: number
+  de_incasat: number // bani
+  profit_luna: number // bani
+  stoc_scazut: number
+  activitate: ActivitateItem[]
+}
+
+export interface SearchResult {
+  tip: EntitateTip
+  id: number
+  titlu: string
+  subtitlu: string | null
+  link: string
+}
+
 export interface RezultatActualizare {
   disponibila: boolean
   versiune?: string
@@ -269,6 +294,18 @@ export interface CatastifApi {
     get(id: number): Promise<AchizitieDetaliu | undefined>
     create(input: AchizitieInput): Promise<AchizitieDetaliu>
     update(id: number, input: AchizitieInput): Promise<AchizitieDetaliu>
+    delete(id: number): Promise<void>
+  }
+  dashboard: {
+    get(): Promise<DashboardData>
+  }
+  search: {
+    global(q: string): Promise<SearchResult[]>
+  }
+  fisiere: {
+    list(entitateTip: EntitateTip, entitateId: number): Promise<Fisier[]>
+    attach(entitateTip: EntitateTip, entitateId: number): Promise<Fisier[]>
+    open(id: number): Promise<void>
     delete(id: number): Promise<void>
   }
 }

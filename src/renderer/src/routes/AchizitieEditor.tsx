@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   ActionIcon,
+  Box,
   Button,
   Card,
   Grid,
@@ -30,6 +31,7 @@ import {
 import type { AchizitieDetaliu, AchizitieInput, Furnizor, Produs } from '@shared/types'
 import { baniToLei, leiToBani } from '../lib/money'
 import { formatLei } from '../lib/format'
+import { FileAttachments } from '../components/FileAttachments'
 
 interface LinieForm {
   produs_id: string | null
@@ -355,6 +357,12 @@ export function AchizitieEditor(): React.JSX.Element {
               Produsele cu stoc urmărit își cresc automat stocul cu cantitățile de mai sus.
             </Text>
           </Card>
+
+          {!esteNou && achizitieId != null && (
+            <Box mt="lg">
+              <FileAttachments entitateTip="achizitie" entitateId={achizitieId} />
+            </Box>
+          )}
         </Grid.Col>
       </Grid>
     </>

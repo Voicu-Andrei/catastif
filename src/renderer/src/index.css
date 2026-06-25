@@ -9,6 +9,17 @@ body {
   background: var(--mantine-color-gray-0);
 }
 
+.stat-card:hover {
+  box-shadow: var(--mantine-shadow-md);
+  transform: translateY(-2px);
+}
+.activity-row {
+  transition: background 0.1s ease;
+}
+.activity-row:hover {
+  background: var(--mantine-color-gray-1);
+}
+
 /* Scroll mai discret pentru aspectul de aplicație desktop */
 ::-webkit-scrollbar {
   width: 10px;

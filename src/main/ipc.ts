@@ -1,14 +1,30 @@
 import { ipcMain, dialog, shell, app, BrowserWindow } from 'electron'
 import type { BackupResult, Setari } from '@shared/types'
+import type { EntitateTip } from '@shared/types'
 import { getSetari, saveSetari } from './db/repos/setari'
 import { backupToSync, rotateBackups, restoreFromSync } from './backup'
 import { registerEntitiesIpc } from './ipc-entities'
+import { getDashboard } from './db/repos/dashboard'
+import { searchGlobal } from './db/repos/search'
+import { listFisiere, attachFisiere, openFisier, deleteFisier } from './files'
 
 export function registerIpc(): void {
   registerEntitiesIpc()
 
   // --- App ---
   ipcMain.handle('app:getVersion', () => app.getVersion())
+
+  // --- Dashboard & căutare ---
+  ipcMain.handle('dashboard:get', () => getDashboard())
+  ipcMain.handle('search:global', (_e, q: string) => searchGlobal(q))
+
+  // --- Fișiere (atașamente) ---
+  ipcMain.handle('fisiere:list', (_e, tip: EntitateTip, id: number) => listFisiere(tip, id))
+  ipcMain.handle('fisiere:attach', (e, tip: EntitateTip, id: number) =>
+    attachFisiere(BrowserWindow.fromWebContents(e.sender) ?? undefined, tip, id)
+  )
+  ipcMain.handle('fisiere:open', (_e, id: number) => openFisier(id))
+  ipcMain.handle('fisiere:delete', (_e, id: number) => deleteFisier(id))
 
   // --- Setări ---
   ipcMain.handle('setari:get', () => getSetari())
