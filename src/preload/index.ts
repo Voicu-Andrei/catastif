@@ -14,6 +14,27 @@ const api: CatastifApi = {
     importFrom: () => ipcRenderer.invoke('backup:importFrom'),
     chooseFolder: () => ipcRenderer.invoke('backup:chooseFolder'),
     openFolder: () => ipcRenderer.invoke('backup:openFolder')
+  },
+  furnizori: {
+    list: () => ipcRenderer.invoke('furnizori:list'),
+    get: (id) => ipcRenderer.invoke('furnizori:get', id),
+    create: (input) => ipcRenderer.invoke('furnizori:create', input),
+    update: (id, input) => ipcRenderer.invoke('furnizori:update', id, input),
+    delete: (id) => ipcRenderer.invoke('furnizori:delete', id)
+  },
+  clienti: {
+    list: () => ipcRenderer.invoke('clienti:list'),
+    get: (id) => ipcRenderer.invoke('clienti:get', id),
+    create: (input) => ipcRenderer.invoke('clienti:create', input),
+    update: (id, input) => ipcRenderer.invoke('clienti:update', id, input),
+    delete: (id) => ipcRenderer.invoke('clienti:delete', id)
+  },
+  produse: {
+    list: () => ipcRenderer.invoke('produse:list'),
+    get: (id) => ipcRenderer.invoke('produse:get', id),
+    create: (input) => ipcRenderer.invoke('produse:create', input),
+    update: (id, input) => ipcRenderer.invoke('produse:update', id, input),
+    delete: (id) => ipcRenderer.invoke('produse:delete', id)
   }
 }
 

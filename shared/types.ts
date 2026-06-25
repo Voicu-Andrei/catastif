@@ -207,4 +207,25 @@ export interface CatastifApi {
     chooseFolder(): Promise<string | null>
     openFolder(): Promise<void>
   }
+  furnizori: {
+    list(): Promise<Furnizor[]>
+    get(id: number): Promise<Furnizor | undefined>
+    create(input: FurnizorInput): Promise<Furnizor>
+    update(id: number, input: FurnizorInput): Promise<Furnizor>
+    delete(id: number): Promise<void>
+  }
+  clienti: {
+    list(): Promise<Client[]>
+    get(id: number): Promise<Client | undefined>
+    create(input: ClientInput): Promise<Client>
+    update(id: number, input: ClientInput): Promise<Client>
+    delete(id: number): Promise<void>
+  }
+  produse: {
+    list(): Promise<Produs[]>
+    get(id: number): Promise<Produs | undefined>
+    create(input: ProdusInput): Promise<Produs>
+    update(id: number, input: ProdusInput): Promise<Produs>
+    delete(id: number): Promise<void>
+  }
 }

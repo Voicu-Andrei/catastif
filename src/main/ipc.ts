@@ -2,8 +2,11 @@ import { ipcMain, dialog, shell, app, BrowserWindow } from 'electron'
 import type { BackupResult, Setari } from '@shared/types'
 import { getSetari, saveSetari } from './db/repos/setari'
 import { backupToSync, rotateBackups, restoreFromSync } from './backup'
+import { registerEntitiesIpc } from './ipc-entities'
 
 export function registerIpc(): void {
+  registerEntitiesIpc()
+
   // --- App ---
   ipcMain.handle('app:getVersion', () => app.getVersion())
 
