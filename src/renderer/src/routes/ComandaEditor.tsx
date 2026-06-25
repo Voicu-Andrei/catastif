@@ -30,7 +30,8 @@ import {
   IconCash,
   IconTrash,
   IconBan,
-  IconDeviceFloppy
+  IconDeviceFloppy,
+  IconPrinter
 } from '@tabler/icons-react'
 import type { Client, ComandaDetaliu, ComandaInput, Produs } from '@shared/types'
 import { calcComanda, calcLinie } from '@shared/calc'
@@ -262,6 +263,13 @@ export function ComandaEditor(): React.JSX.Element {
     notifications.show({ color: 'teal', title: 'Plată înregistrată', message: formatLei(leiToBani(suma)) })
   }
 
+  async function tiparestePdf(): Promise<void> {
+    const r = await window.api.pdf.comanda(comandaId!)
+    if (!r.ok && r.mesaj && r.mesaj !== 'Export anulat.') {
+      notifications.show({ color: 'red', title: 'Eroare PDF', message: r.mesaj })
+    }
+  }
+
   const stareMeta = comanda ? STARE_META[comanda.stare] : STARE_META.oferta
   const linii = form.getValues().linii
 
@@ -304,6 +312,11 @@ export function ComandaEditor(): React.JSX.Element {
           {!esteNou && comanda?.stare === 'comanda' && (
             <Button variant="subtle" color="red" leftSection={<IconBan size={18} />} onClick={confirmaAnulare}>
               Anulează
+            </Button>
+          )}
+          {!esteNou && (
+            <Button variant="default" leftSection={<IconPrinter size={18} />} onClick={tiparestePdf}>
+              PDF
             </Button>
           )}
           <Button leftSection={<IconDeviceFloppy size={18} />} onClick={salveaza}>

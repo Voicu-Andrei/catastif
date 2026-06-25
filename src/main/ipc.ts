@@ -1,12 +1,19 @@
 import { ipcMain, dialog, shell, app, BrowserWindow } from 'electron'
 import type { BackupResult, Setari } from '@shared/types'
-import type { EntitateTip } from '@shared/types'
+import type { EntitateTip, ExportFormat } from '@shared/types'
 import { getSetari, saveSetari } from './db/repos/setari'
 import { backupToSync, rotateBackups, restoreFromSync } from './backup'
 import { registerEntitiesIpc } from './ipc-entities'
 import { getDashboard } from './db/repos/dashboard'
 import { searchGlobal } from './db/repos/search'
 import { listFisiere, attachFisiere, openFisier, deleteFisier } from './files'
+import { getRapoarte } from './db/repos/rapoarte'
+import { exportTabel } from './export'
+import { generatePdfComanda, generatePdfRaport } from './pdf'
+
+function winFrom(e: Electron.IpcMainInvokeEvent): BrowserWindow | undefined {
+  return BrowserWindow.fromWebContents(e.sender) ?? undefined
+}
 
 export function registerIpc(): void {
   registerEntitiesIpc()
@@ -25,6 +32,16 @@ export function registerIpc(): void {
   )
   ipcMain.handle('fisiere:open', (_e, id: number) => openFisier(id))
   ipcMain.handle('fisiere:delete', (_e, id: number) => deleteFisier(id))
+
+  // --- Rapoarte, export, PDF ---
+  ipcMain.handle('rapoarte:get', (_e, an: number) => getRapoarte(an))
+  ipcMain.handle(
+    'export:tabel',
+    (e, format: ExportFormat, nume: string, headers: string[], rows: (string | number)[][]) =>
+      exportTabel(winFrom(e), format, nume, headers, rows)
+  )
+  ipcMain.handle('pdf:comanda', (e, id: number) => generatePdfComanda(winFrom(e), id))
+  ipcMain.handle('pdf:raport', (e, an: number) => generatePdfRaport(winFrom(e), an))
 
   // --- Setări ---
   ipcMain.handle('setari:get', () => getSetari())

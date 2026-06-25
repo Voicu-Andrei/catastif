@@ -235,6 +235,40 @@ export interface SearchResult {
   link: string
 }
 
+// --- Rapoarte ---
+export interface RaportLunar {
+  luna: string // '01'..'12'
+  total_fara_tva: number // bani
+  profit: number // bani
+}
+export interface RaportClient {
+  client: string
+  total: number // bani
+  profit: number // bani
+}
+export interface RaportFurnizor {
+  furnizor: string
+  total: number // bani
+}
+export interface RaportIncasare {
+  id: number
+  numar: string | null
+  client: string | null
+  total: number
+  achitat: number
+  rest: number
+}
+export interface RaportData {
+  an: number
+  ani: number[]
+  vanzari_lunare: RaportLunar[]
+  profit_pe_client: RaportClient[]
+  achizitii_pe_furnizor: RaportFurnizor[]
+  de_incasat: RaportIncasare[]
+}
+
+export type ExportFormat = 'csv' | 'xlsx'
+
 export interface RezultatActualizare {
   disponibila: boolean
   versiune?: string
@@ -307,5 +341,20 @@ export interface CatastifApi {
     attach(entitateTip: EntitateTip, entitateId: number): Promise<Fisier[]>
     open(id: number): Promise<void>
     delete(id: number): Promise<void>
+  }
+  rapoarte: {
+    get(an: number): Promise<RaportData>
+  }
+  export: {
+    tabel(
+      format: ExportFormat,
+      numeFisier: string,
+      headers: string[],
+      rows: (string | number)[][]
+    ): Promise<BackupResult>
+  }
+  pdf: {
+    comanda(id: number): Promise<BackupResult>
+    raport(an: number): Promise<BackupResult>
   }
 }

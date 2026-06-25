@@ -1,15 +1,213 @@
-import { IconChartBar } from '@tabler/icons-react'
-import { ComingSoon, PageHeader } from '../components/Placeholder'
+import { useEffect, useState } from 'react'
+import { Button, Group, Paper, ScrollArea, Select, SimpleGrid, Table, Text } from '@mantine/core'
+import { BarChart } from '@mantine/charts'
+import { IconPrinter } from '@tabler/icons-react'
+import type { RaportData } from '@shared/types'
+import { PageHeader } from '../components/Placeholder'
+import { ExportButtons } from '../components/ExportButtons'
+import { formatLei } from '../lib/format'
+import { baniToLei } from '../lib/money'
+
+const LUNI_SCURT = ['Ian', 'Feb', 'Mar', 'Apr', 'Mai', 'Iun', 'Iul', 'Aug', 'Sep', 'Oct', 'Noi', 'Dec']
 
 export function Rapoarte(): React.JSX.Element {
+  const [an, setAn] = useState<number>(new Date().getFullYear())
+  const [data, setData] = useState<RaportData | null>(null)
+
+  useEffect(() => {
+    window.api.rapoarte.get(an).then(setData)
+  }, [an])
+
+  const chartData = (data?.vanzari_lunare ?? []).map((m, i) => ({
+    luna: LUNI_SCURT[i],
+    Vânzări: baniToLei(m.total_fara_tva),
+    Profit: baniToLei(m.profit)
+  }))
+
+  const aniOptions = (data?.ani ?? [an]).map((a) => ({ value: String(a), label: String(a) }))
+
   return (
     <>
-      <PageHeader title="Rapoarte" subtitle="Profit, vânzări și încasări, cu export" />
-      <ComingSoon
-        icon={<IconChartBar size={34} />}
-        title="Rapoartele sosesc într-o etapă următoare"
-        description="Profit și vânzări pe perioadă, client și produs, cu grafice și export CSV / Excel / PDF."
+      <PageHeader
+        title="Rapoarte"
+        subtitle="Profit, vânzări și încasări"
+        action={
+          <Group gap="sm">
+            <Select
+              data={aniOptions}
+              value={String(an)}
+              onChange={(v) => setAn(Number(v ?? an))}
+              allowDeselect={false}
+              w={110}
+            />
+            <Button
+              variant="default"
+              leftSection={<IconPrinter size={18} />}
+              onClick={() => window.api.pdf.raport(an)}
+            >
+              Exportă PDF
+            </Button>
+          </Group>
+        }
       />
+
+      <Paper withBorder radius="lg" p="lg" mb="lg">
+        <Text fw={600} mb="md">
+          Vânzări și profit pe luni ({an})
+        </Text>
+        <BarChart
+          h={300}
+          data={chartData}
+          dataKey="luna"
+          series={[
+            { name: 'Vânzări', color: 'brand.6' },
+            { name: 'Profit', color: 'blue.5' }
+          ]}
+          valueFormatter={(v) => `${v.toLocaleString('ro-RO')} lei`}
+          withLegend
+        />
+      </Paper>
+
+      <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="lg" mb="lg">
+        <Paper withBorder radius="lg" p="lg">
+          <Group justify="space-between" mb="sm">
+            <Text fw={600}>Profit pe client</Text>
+            <ExportButtons
+              numeFisier={`Profit-pe-client-${an}`}
+              headers={['Client', 'Vânzări (lei)', 'Profit (lei)']}
+              rows={(data?.profit_pe_client ?? []).map((c) => [
+                c.client,
+                baniToLei(c.total),
+                baniToLei(c.profit)
+              ])}
+              disabled={!data?.profit_pe_client.length}
+            />
+          </Group>
+          <ScrollArea>
+            <Table verticalSpacing="xs">
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>Client</Table.Th>
+                  <Table.Th ta="right">Vânzări</Table.Th>
+                  <Table.Th ta="right">Profit</Table.Th>
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
+                {(data?.profit_pe_client ?? []).map((c, i) => (
+                  <Table.Tr key={i}>
+                    <Table.Td>{c.client}</Table.Td>
+                    <Table.Td ta="right">{formatLei(c.total)}</Table.Td>
+                    <Table.Td ta="right">{formatLei(c.profit)}</Table.Td>
+                  </Table.Tr>
+                ))}
+                {!data?.profit_pe_client.length && (
+                  <Table.Tr>
+                    <Table.Td colSpan={3}>
+                      <Text c="dimmed" size="sm">
+                        Nicio comandă confirmată în {an}.
+                      </Text>
+                    </Table.Td>
+                  </Table.Tr>
+                )}
+              </Table.Tbody>
+            </Table>
+          </ScrollArea>
+        </Paper>
+
+        <Paper withBorder radius="lg" p="lg">
+          <Group justify="space-between" mb="sm">
+            <Text fw={600}>Achiziții pe furnizor</Text>
+            <ExportButtons
+              numeFisier={`Achizitii-pe-furnizor-${an}`}
+              headers={['Furnizor', 'Total (lei)']}
+              rows={(data?.achizitii_pe_furnizor ?? []).map((f) => [f.furnizor, baniToLei(f.total)])}
+              disabled={!data?.achizitii_pe_furnizor.length}
+            />
+          </Group>
+          <ScrollArea>
+            <Table verticalSpacing="xs">
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>Furnizor</Table.Th>
+                  <Table.Th ta="right">Total</Table.Th>
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
+                {(data?.achizitii_pe_furnizor ?? []).map((f, i) => (
+                  <Table.Tr key={i}>
+                    <Table.Td>{f.furnizor}</Table.Td>
+                    <Table.Td ta="right">{formatLei(f.total)}</Table.Td>
+                  </Table.Tr>
+                ))}
+                {!data?.achizitii_pe_furnizor.length && (
+                  <Table.Tr>
+                    <Table.Td colSpan={2}>
+                      <Text c="dimmed" size="sm">
+                        Nicio achiziție în {an}.
+                      </Text>
+                    </Table.Td>
+                  </Table.Tr>
+                )}
+              </Table.Tbody>
+            </Table>
+          </ScrollArea>
+        </Paper>
+      </SimpleGrid>
+
+      <Paper withBorder radius="lg" p="lg">
+        <Group justify="space-between" mb="sm">
+          <Text fw={600}>De încasat (toate comenzile)</Text>
+          <ExportButtons
+            numeFisier="De-incasat"
+            headers={['Comandă', 'Client', 'Total (lei)', 'Achitat (lei)', 'Rest (lei)']}
+            rows={(data?.de_incasat ?? []).map((r) => [
+              r.numar ?? `#${r.id}`,
+              r.client ?? '—',
+              baniToLei(r.total),
+              baniToLei(r.achitat),
+              baniToLei(r.rest)
+            ])}
+            disabled={!data?.de_incasat.length}
+          />
+        </Group>
+        <ScrollArea>
+          <Table verticalSpacing="xs">
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th>Comandă</Table.Th>
+                <Table.Th>Client</Table.Th>
+                <Table.Th ta="right">Total</Table.Th>
+                <Table.Th ta="right">Achitat</Table.Th>
+                <Table.Th ta="right">Rest</Table.Th>
+              </Table.Tr>
+            </Table.Thead>
+            <Table.Tbody>
+              {(data?.de_incasat ?? []).map((r) => (
+                <Table.Tr key={r.id}>
+                  <Table.Td>{r.numar ?? `#${r.id}`}</Table.Td>
+                  <Table.Td>{r.client ?? '—'}</Table.Td>
+                  <Table.Td ta="right">{formatLei(r.total)}</Table.Td>
+                  <Table.Td ta="right">{formatLei(r.achitat)}</Table.Td>
+                  <Table.Td ta="right">
+                    <Text c="orange.7" fw={500}>
+                      {formatLei(r.rest)}
+                    </Text>
+                  </Table.Td>
+                </Table.Tr>
+              ))}
+              {!data?.de_incasat.length && (
+                <Table.Tr>
+                  <Table.Td colSpan={5}>
+                    <Text c="dimmed" size="sm">
+                      Nimic de încasat. 🎉
+                    </Text>
+                  </Table.Td>
+                </Table.Tr>
+              )}
+            </Table.Tbody>
+          </Table>
+        </ScrollArea>
+      </Paper>
     </>
   )
 }

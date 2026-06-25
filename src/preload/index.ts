@@ -64,6 +64,17 @@ const api: CatastifApi = {
     attach: (tip, id) => ipcRenderer.invoke('fisiere:attach', tip, id),
     open: (id) => ipcRenderer.invoke('fisiere:open', id),
     delete: (id) => ipcRenderer.invoke('fisiere:delete', id)
+  },
+  rapoarte: {
+    get: (an) => ipcRenderer.invoke('rapoarte:get', an)
+  },
+  export: {
+    tabel: (format, numeFisier, headers, rows) =>
+      ipcRenderer.invoke('export:tabel', format, numeFisier, headers, rows)
+  },
+  pdf: {
+    comanda: (id) => ipcRenderer.invoke('pdf:comanda', id),
+    raport: (an) => ipcRenderer.invoke('pdf:raport', an)
   }
 }
 
