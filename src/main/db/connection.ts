@@ -19,6 +19,11 @@ export function getDb(): Database.Database {
   return db
 }
 
+// Conexiunea curentă, fără a deschide una nouă (pentru backup/restaurare).
+export function getOpenDb(): Database.Database | null {
+  return db
+}
+
 export function closeDb(): void {
   if (db) {
     db.close()
