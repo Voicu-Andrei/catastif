@@ -107,6 +107,50 @@ describe('ciclul de viață al comenzii', () => {
   })
 })
 
+describe('reguli pe număr și stare', () => {
+  it('numărul de comandă trebuie să fie unic', () => {
+    createComanda({ numar: 'C0099', client_id: null, observatii: null, linii: [linie(null, 1)] })
+    expect(() =>
+      createComanda({ numar: 'C0099', client_id: null, observatii: null, linii: [linie(null, 1)] })
+    ).toThrow(/folosit deja/)
+  })
+
+  it('propriul număr rămâne valid la actualizare', () => {
+    const c = createComanda({
+      numar: 'C0100',
+      client_id: null,
+      observatii: null,
+      linii: [linie(null, 1)]
+    })
+    expect(() =>
+      updateComanda(c.id, {
+        numar: 'C0100',
+        client_id: null,
+        observatii: null,
+        linii: [linie(null, 2)]
+      })
+    ).not.toThrow()
+  })
+
+  it('o comandă anulată nu poate fi modificată', () => {
+    const c = createComanda({
+      numar: null,
+      client_id: null,
+      observatii: null,
+      linii: [linie(null, 1)]
+    })
+    anuleazaComanda(c.id)
+    expect(() =>
+      updateComanda(c.id, {
+        numar: null,
+        client_id: null,
+        observatii: null,
+        linii: [linie(null, 5)]
+      })
+    ).toThrow(/anulată/)
+  })
+})
+
 describe('updateComanda și stocul', () => {
   it('editarea unei comenzi confirmate ajustează stocul la noile cantități', () => {
     const p = createProdus(PRODUS)

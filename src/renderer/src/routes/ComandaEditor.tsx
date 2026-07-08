@@ -416,9 +416,15 @@ export function ComandaEditor(): React.JSX.Element {
               PDF
             </Button>
           )}
-          <Button leftSection={<IconDeviceFloppy size={18} />} onClick={salveaza}>
-            Salvează
-          </Button>
+          {comanda?.stare === 'anulata' ? (
+            <Text c="dimmed" size="sm">
+              Comandă anulată — doar consultare
+            </Text>
+          ) : (
+            <Button leftSection={<IconDeviceFloppy size={18} />} onClick={salveaza}>
+              Salvează
+            </Button>
+          )}
         </Group>
       </Group>
 
@@ -563,7 +569,7 @@ export function ComandaEditor(): React.JSX.Element {
             </ScrollArea>
 
             <Textarea
-              label="Observatii"
+              label="Observații"
               mt="md"
               autosize
               minRows={2}

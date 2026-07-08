@@ -1,6 +1,6 @@
 import { BrowserWindow, dialog, shell } from 'electron'
-import { writeFileSync, existsSync } from 'fs'
-import { pathToFileURL } from 'url'
+import { writeFileSync, existsSync, readFileSync } from 'fs'
+import { extname } from 'path'
 import { getComanda } from './db/repos/comenzi'
 import { getClient } from './db/repos/clienti'
 import { getSetari } from './db/repos/setari'
@@ -55,11 +55,31 @@ const STIL = `
   h2 { font-size: 15px; margin: 22px 0 0; }
 `
 
+// Logo-ul e citit de pe disc și încorporat direct în HTML, ca fereastra de
+// tipărire să nu aibă nevoie de acces la fișiere locale (webSecurity rămâne activ).
+function logoDataUri(cale: string): string | null {
+  const mime: Record<string, string> = {
+    png: 'image/png',
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    gif: 'image/gif',
+    webp: 'image/webp',
+    svg: 'image/svg+xml'
+  }
+  const tip = mime[extname(cale).slice(1).toLowerCase()]
+  if (!tip) return null
+  try {
+    return `data:${tip};base64,${readFileSync(cale).toString('base64')}`
+  } catch {
+    return null
+  }
+}
+
 function antet(s: Setari): string {
-  const logo =
-    s.logo_path && existsSync(s.logo_path)
-      ? `<img src="${pathToFileURL(s.logo_path).href}" style="max-height:56px;max-width:200px" />`
-      : `<div class="brand" style="font-size:20px">${esc(s.nume_firma || 'Catastif')}</div>`
+  const logoSrc = s.logo_path && existsSync(s.logo_path) ? logoDataUri(s.logo_path) : null
+  const logo = logoSrc
+    ? `<img src="${logoSrc}" style="max-height:56px;max-width:200px" />`
+    : `<div class="brand" style="font-size:20px">${esc(s.nume_firma || 'Catastif')}</div>`
   const linii = [
     s.cui && `CUI: ${esc(s.cui)}`,
     s.nr_reg_com && `Reg. Com.: ${esc(s.nr_reg_com)}`,
@@ -194,10 +214,7 @@ async function htmlToPdf(
   html: string,
   defaultName: string
 ): Promise<BackupResult> {
-  const pdfWin = new BrowserWindow({
-    show: false,
-    webPreferences: { sandbox: false, webSecurity: false }
-  })
+  const pdfWin = new BrowserWindow({ show: false })
   try {
     await pdfWin.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html))
     const data = await pdfWin.webContents.printToPDF({

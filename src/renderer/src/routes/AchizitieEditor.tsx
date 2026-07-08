@@ -354,7 +354,7 @@ export function AchizitieEditor(): React.JSX.Element {
             </ScrollArea>
 
             <Textarea
-              label="Observatii"
+              label="Observații"
               mt="md"
               autosize
               minRows={2}

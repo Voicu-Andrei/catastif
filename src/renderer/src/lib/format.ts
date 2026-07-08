@@ -1,19 +1,12 @@
 // Formatare în convenții românești (ro-RO).
 
-const leiFmt = new Intl.NumberFormat('ro-RO', {
-  style: 'currency',
-  currency: 'RON',
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2
-})
-
 const numFmt = new Intl.NumberFormat('ro-RO', {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2
 })
 
-// Primește BANI, întoarce ex. „1.234,56 lei”.
-export const formatLei = (bani: number): string => leiFmt.format(bani / 100)
+// Primește BANI, întoarce ex. „1.234,56 lei” (aceeași etichetă ca în PDF-uri).
+export const formatLei = (bani: number): string => `${numFmt.format(bani / 100)} lei`
 
 export const formatNumar = (n: number): string => numFmt.format(n)
 

@@ -82,11 +82,21 @@ const toCalc = (linii: LinieComandaInput[]): Parameters<typeof calcComanda>[0] =
     cota_tva: l.cota_tva
   }))
 
+// Numărul e editabil de utilizator, deci trebuie verificat la salvare.
+function verificaNumarUnic(db: Database, numar: string | null, exceptaId?: number): void {
+  if (!numar) return
+  const r = db
+    .prepare('SELECT id FROM comenzi WHERE numar = ? AND id != ?')
+    .get(numar, exceptaId ?? -1) as { id: number } | undefined
+  if (r) throw new Error(`Numărul „${numar}” este folosit deja de altă comandă.`)
+}
+
 export function createComanda(input: ComandaInput): ComandaDetaliu {
   valideazaComanda(input)
   const db = getDb()
   const t = calcComanda(toCalc(input.linii))
   const tx = db.transaction(() => {
+    verificaNumarUnic(db, input.numar)
     const info = db
       .prepare(
         `INSERT INTO comenzi (numar, client_id, stare, total_fara_tva, total_tva, total, observatii)
@@ -121,6 +131,10 @@ export function updateComanda(id: number, input: ComandaInput): ComandaDetaliu {
     const cur = db.prepare('SELECT stare FROM comenzi WHERE id=?').get(id) as
       { stare: StareComanda } | undefined
     if (!cur) throw new Error('Comanda nu există.')
+    if (cur.stare === 'anulata') {
+      throw new Error('O comandă anulată nu poate fi modificată — rămâne în istoric.')
+    }
+    verificaNumarUnic(db, input.numar, id)
     // O comandă confirmată a scăzut deja stocul. Anulăm efectul liniilor vechi
     // și aplicăm efectul celor noi, ca stocul să reflecte mereu liniile curente.
     if (cur.stare === 'comanda') aplicaStocComanda(db, id, 1)
