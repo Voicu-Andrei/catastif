@@ -1,4 +1,5 @@
 import { getDb } from '../connection'
+import { getSetari } from './setari'
 import type { ActivitateItem, DashboardData } from '@shared/types'
 
 const scalar = (sql: string): number => {
@@ -35,9 +36,12 @@ export function getDashboard(): DashboardData {
     WHERE c.stare='comanda'
       AND strftime('%Y-%m', COALESCE(c.data_acceptare, c.data_creare)) = strftime('%Y-%m','now')
   `)
-  const stocScazut = scalar(
-    'SELECT COUNT(*) v FROM produse WHERE track_stock=1 AND prag_stoc IS NOT NULL AND stoc_curent <= prag_stoc'
-  )
+  // Produsele fără prag propriu folosesc pragul implicit din setări.
+  const stocScazut = db
+    .prepare(
+      'SELECT COUNT(*) v FROM produse WHERE track_stock=1 AND stoc_curent <= COALESCE(prag_stoc, @prag)'
+    )
+    .get({ prag: getSetari().prag_stoc_implicit }) as { v: number }
 
   const comenzi = db
     .prepare(
@@ -80,7 +84,7 @@ export function getDashboard(): DashboardData {
     comenzi_active: active,
     de_incasat: deIncasat,
     profit_luna: Math.round(profitLuna),
-    stoc_scazut: stocScazut,
+    stoc_scazut: stocScazut.v,
     activitate
   }
 }

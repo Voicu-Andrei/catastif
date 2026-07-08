@@ -39,6 +39,8 @@ import { baniToLei, leiToBani } from '../lib/money'
 import { formatLei, formatData } from '../lib/format'
 import { STARE_META } from '../lib/stare'
 import { mesajEroare } from '../lib/erori'
+import { TVA_SELECT_DATA } from '../lib/tva'
+import { useSetari } from '../lib/useSetari'
 import { FileAttachments } from '../components/FileAttachments'
 
 interface LinieForm {
@@ -58,22 +60,15 @@ interface ComandaForm {
   linii: LinieForm[]
 }
 
-const emptyLinie = (): LinieForm => ({
+const emptyLinie = (cotaTva = 21): LinieForm => ({
   produs_id: null,
   descriere: '',
   cantitate: 1,
   unitate_masura: 'buc',
   cost_lei: '',
   pret_lei: '',
-  cota_tva: 21
+  cota_tva: cotaTva
 })
-
-const TVA_DATA = [
-  { value: '21', label: '21%' },
-  { value: '11', label: '11%' },
-  { value: '9', label: '9%' },
-  { value: '0', label: '0%' }
-]
 
 export function ComandaEditor(): React.JSX.Element {
   const navigate = useNavigate()
@@ -85,6 +80,8 @@ export function ComandaEditor(): React.JSX.Element {
   const [produse, setProduse] = useState<Produs[]>([])
   const [comanda, setComanda] = useState<ComandaDetaliu | null>(null)
   const [plataLei, setPlataLei] = useState<number | string>('')
+  const setari = useSetari()
+  const cotaImplicita = setari?.cota_tva_implicita ?? 21
 
   const form = useForm<ComandaForm>({
     initialValues: { numar: '', client_id: null, observatii: '', linii: [emptyLinie()] }
@@ -94,6 +91,15 @@ export function ComandaEditor(): React.JSX.Element {
     window.api.clienti.list().then(setClienti)
     window.api.produse.list().then(setProduse)
   }, [])
+
+  // Oferta nouă preia cota TVA implicită imediat ce sosesc setările.
+  useEffect(() => {
+    if (esteNou && !form.isDirty()) {
+      form.setFieldValue('linii.0.cota_tva', cotaImplicita)
+      form.resetDirty()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cotaImplicita])
 
   function incarcaComanda(c: ComandaDetaliu): void {
     setComanda(c)
@@ -440,7 +446,7 @@ export function ComandaEditor(): React.JSX.Element {
                 size="xs"
                 variant="light"
                 leftSection={<IconCirclePlus size={16} />}
-                onClick={() => form.insertListItem('linii', emptyLinie())}
+                onClick={() => form.insertListItem('linii', emptyLinie(cotaImplicita))}
               >
                 Adaugă linie
               </Button>
@@ -516,11 +522,14 @@ export function ComandaEditor(): React.JSX.Element {
                         <Table.Td>
                           <Select
                             size="xs"
-                            data={TVA_DATA}
+                            data={TVA_SELECT_DATA}
                             allowDeselect={false}
                             value={String(linii[idx].cota_tva)}
                             onChange={(v) =>
-                              form.setFieldValue(`linii.${idx}.cota_tva`, Number(v ?? 21))
+                              form.setFieldValue(
+                                `linii.${idx}.cota_tva`,
+                                Number(v ?? cotaImplicita)
+                              )
                             }
                           />
                         </Table.Td>

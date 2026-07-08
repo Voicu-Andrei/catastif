@@ -29,6 +29,8 @@ import { useList } from '../lib/useList'
 import { mesajEroare } from '../lib/erori'
 import { baniToLei, leiToBani } from '../lib/money'
 import { formatLei } from '../lib/format'
+import { TVA_SELECT_DATA } from '../lib/tva'
+import { useSetari } from '../lib/useSetari'
 
 interface ProdusForm {
   nume: string
@@ -60,6 +62,7 @@ const numOrNull = (v: number | string): number | null => (v === '' || v === null
 export function Produse(): React.JSX.Element {
   const { items, loading, error, reload } = useList<Produs>(window.api.produse.list)
   const [furnizori, setFurnizori] = useState<Furnizor[]>([])
+  const setari = useSetari()
   const [search, setSearch] = useState('')
   const [editing, setEditing] = useState<Produs | null>(null)
   const [opened, { open, close }] = useDisclosure(false)
@@ -92,8 +95,9 @@ export function Produse(): React.JSX.Element {
 
   function openCreate(): void {
     setEditing(null)
-    form.setValues(EMPTY)
-    form.resetDirty(EMPTY)
+    const initial = { ...EMPTY, cota_tva: setari?.cota_tva_implicita ?? EMPTY.cota_tva }
+    form.setValues(initial)
+    form.resetDirty(initial)
     open()
   }
 
@@ -200,7 +204,8 @@ export function Produse(): React.JSX.Element {
               <Table.Tbody>
                 {filtered.map((p) => {
                   const stocScazut =
-                    p.track_stock && p.prag_stoc != null && p.stoc_curent <= p.prag_stoc
+                    p.track_stock &&
+                    p.stoc_curent <= (p.prag_stoc ?? setari?.prag_stoc_implicit ?? 0)
                   return (
                     <Table.Tr key={p.id} style={{ cursor: 'pointer' }}>
                       <Table.Td onClick={() => openEdit(p)}>
@@ -275,12 +280,7 @@ export function Produse(): React.JSX.Element {
               <TextInput label="Unitate de măsură" {...form.getInputProps('unitate_masura')} />
               <Select
                 label="Cotă TVA"
-                data={[
-                  { value: '21', label: '21%' },
-                  { value: '11', label: '11%' },
-                  { value: '9', label: '9%' },
-                  { value: '0', label: '0%' }
-                ]}
+                data={TVA_SELECT_DATA}
                 value={String(form.values.cota_tva)}
                 onChange={(v) => form.setFieldValue('cota_tva', Number(v ?? 21))}
                 allowDeselect={false}
@@ -314,6 +314,10 @@ export function Produse(): React.JSX.Element {
                 <NumberInput label="Stoc curent" min={0} {...form.getInputProps('stoc_curent')} />
                 <NumberInput
                   label="Prag stoc scăzut"
+                  placeholder={
+                    setari != null ? `implicit: ${setari.prag_stoc_implicit}` : undefined
+                  }
+                  description="Gol = folosește pragul implicit din Setări."
                   min={0}
                   {...form.getInputProps('prag_stoc')}
                 />

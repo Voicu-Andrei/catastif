@@ -27,6 +27,8 @@ import {
 import type { Setari as TSetari } from '@shared/types'
 import { PageHeader } from '../components/Placeholder'
 import { mesajEroare } from '../lib/erori'
+import { TVA_SELECT_DATA } from '../lib/tva'
+import { invalidateSetari } from '../lib/useSetari'
 
 const INITIAL: TSetari = {
   nume_firma: '',
@@ -75,6 +77,7 @@ export function Setari(): React.JSX.Element {
         prag_stoc_implicit: Number(values.prag_stoc_implicit)
       }
       const saved = await window.api.setari.save(payload)
+      invalidateSetari()
       form.resetDirty(saved)
       notifications.show({ color: 'teal', title: 'Salvat', message: 'Setările au fost salvate.' })
     } catch (err) {
@@ -179,12 +182,7 @@ export function Setari(): React.JSX.Element {
           <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md">
             <Select
               label="Cotă TVA implicită"
-              data={[
-                { value: '21', label: '21% (standard)' },
-                { value: '11', label: '11% (redusă)' },
-                { value: '9', label: '9%' },
-                { value: '0', label: '0%' }
-              ]}
+              data={TVA_SELECT_DATA}
               value={String(form.values.cota_tva_implicita)}
               onChange={(v) => form.setFieldValue('cota_tva_implicita', Number(v ?? 21))}
               allowDeselect={false}
@@ -199,7 +197,7 @@ export function Setari(): React.JSX.Element {
           <Divider my="md" />
           <NumberInput
             label="Prag implicit stoc scăzut"
-            description="Sub această cantitate, produsele cu stoc urmărit apar ca „stoc scăzut”."
+            description="Folosit pentru produsele cu stoc urmărit care nu au un prag propriu."
             min={0}
             w={260}
             {...form.getInputProps('prag_stoc_implicit')}
