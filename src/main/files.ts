@@ -50,6 +50,14 @@ export function openFisier(id: number): void {
   if (f) shell.openPath(join(attachmentsDir(), f.cale))
 }
 
+// La ștergerea unei înregistrări, atașamentele ei nu trebuie să rămână
+// orfane pe disc (ar crește fiecare backup, pentru totdeauna).
+export function stergeAtasamenteEntitate(tip: EntitateTip, id: number): void {
+  getDb().prepare('DELETE FROM fisiere WHERE entitate_tip = ? AND entitate_id = ?').run(tip, id)
+  const dir = join(attachmentsDir(), tip, String(id))
+  if (existsSync(dir)) rmSync(dir, { recursive: true, force: true })
+}
+
 export function deleteFisier(id: number): void {
   const db = getDb()
   const f = db.prepare('SELECT cale FROM fisiere WHERE id = ?').get(id) as

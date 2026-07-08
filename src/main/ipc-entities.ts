@@ -1,4 +1,5 @@
 import { ipcMain } from 'electron'
+import { stergeAtasamenteEntitate } from './files'
 import type {
   AchizitieInput,
   ClientInput,
@@ -54,21 +55,30 @@ export function registerEntitiesIpc(): void {
   ipcMain.handle('furnizori:update', (_e, id: number, input: FurnizorInput) =>
     updateFurnizor(id, input)
   )
-  ipcMain.handle('furnizori:delete', (_e, id: number) => deleteFurnizor(id))
+  ipcMain.handle('furnizori:delete', (_e, id: number) => {
+    deleteFurnizor(id)
+    stergeAtasamenteEntitate('furnizor', id)
+  })
 
   // --- Clienți ---
   ipcMain.handle('clienti:list', () => listClienti())
   ipcMain.handle('clienti:get', (_e, id: number) => getClient(id))
   ipcMain.handle('clienti:create', (_e, input: ClientInput) => createClient(input))
   ipcMain.handle('clienti:update', (_e, id: number, input: ClientInput) => updateClient(id, input))
-  ipcMain.handle('clienti:delete', (_e, id: number) => deleteClient(id))
+  ipcMain.handle('clienti:delete', (_e, id: number) => {
+    deleteClient(id)
+    stergeAtasamenteEntitate('client', id)
+  })
 
   // --- Produse ---
   ipcMain.handle('produse:list', () => listProduse())
   ipcMain.handle('produse:get', (_e, id: number) => getProdus(id))
   ipcMain.handle('produse:create', (_e, input: ProdusInput) => createProdus(input))
   ipcMain.handle('produse:update', (_e, id: number, input: ProdusInput) => updateProdus(id, input))
-  ipcMain.handle('produse:delete', (_e, id: number) => deleteProdus(id))
+  ipcMain.handle('produse:delete', (_e, id: number) => {
+    deleteProdus(id)
+    stergeAtasamenteEntitate('produs', id)
+  })
 
   // --- Comenzi ---
   ipcMain.handle('comenzi:list', (_e, stare?: StareComanda) => listComenzi(stare))
@@ -80,7 +90,10 @@ export function registerEntitiesIpc(): void {
   ipcMain.handle('comenzi:accepta', (_e, id: number) => acceptaComanda(id))
   ipcMain.handle('comenzi:anuleaza', (_e, id: number) => anuleazaComanda(id))
   ipcMain.handle('comenzi:plata', (_e, id: number, suma: number) => inregistreazaPlata(id, suma))
-  ipcMain.handle('comenzi:delete', (_e, id: number) => deleteComanda(id))
+  ipcMain.handle('comenzi:delete', (_e, id: number) => {
+    deleteComanda(id)
+    stergeAtasamenteEntitate('comanda', id)
+  })
 
   // --- Achiziții ---
   ipcMain.handle('achizitii:list', () => listAchizitii())
@@ -89,5 +102,8 @@ export function registerEntitiesIpc(): void {
   ipcMain.handle('achizitii:update', (_e, id: number, input: AchizitieInput) =>
     updateAchizitie(id, input)
   )
-  ipcMain.handle('achizitii:delete', (_e, id: number) => deleteAchizitie(id))
+  ipcMain.handle('achizitii:delete', (_e, id: number) => {
+    deleteAchizitie(id)
+    stergeAtasamenteEntitate('achizitie', id)
+  })
 }
