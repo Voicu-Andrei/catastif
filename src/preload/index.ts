@@ -90,6 +90,6 @@ if (process.contextIsolated) {
   contextBridge.exposeInMainWorld('api', api)
 } else {
   // Fallback (nu ar trebui folosit — contextIsolation e activ).
-  // @ts-ignore expunere directă pe window
+  // @ts-expect-error expunere directă pe window
   window.api = api
 }

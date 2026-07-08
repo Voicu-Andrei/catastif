@@ -51,11 +51,54 @@ function createWindow(): void {
   }
 }
 
+// Pe Windows/Linux ascundem meniul (autoHideMenuBar). Pe macOS un meniu de
+// aplicație este OBLIGATORIU: fără el, scurtăturile standard (Cmd+C/V/X/A,
+// Cmd+Q) nu funcționează deloc în câmpurile de text.
+function configureazaMeniu(): void {
+  if (process.platform !== 'darwin') {
+    Menu.setApplicationMenu(null)
+    return
+  }
+  Menu.setApplicationMenu(
+    Menu.buildFromTemplate([
+      {
+        label: app.name,
+        submenu: [
+          { role: 'hide', label: 'Ascunde Catastif' },
+          { role: 'unhide', label: 'Arată tot' },
+          { type: 'separator' },
+          { role: 'quit', label: 'Închide Catastif' }
+        ]
+      },
+      {
+        label: 'Editare',
+        submenu: [
+          { role: 'undo', label: 'Anulează' },
+          { role: 'redo', label: 'Refă' },
+          { type: 'separator' },
+          { role: 'cut', label: 'Decupează' },
+          { role: 'copy', label: 'Copiază' },
+          { role: 'paste', label: 'Lipește' },
+          { role: 'selectAll', label: 'Selectează tot' }
+        ]
+      },
+      {
+        label: 'Fereastră',
+        submenu: [
+          { role: 'minimize', label: 'Minimizează' },
+          { role: 'zoom', label: 'Mărește' },
+          { role: 'close', label: 'Închide fereastra' }
+        ]
+      }
+    ])
+  )
+}
+
 app.whenReady().then(() => {
   // Inițializează baza + rulează migrațiile devreme.
   getDb()
   registerIpc()
-  Menu.setApplicationMenu(null)
+  configureazaMeniu()
   createWindow()
   if (mainWindow) initAutoUpdate(mainWindow)
 

@@ -46,11 +46,10 @@ export function valideazaBackupDb(file: string): void {
     }
   } catch (err) {
     const msg = (err as Error).message
-    throw new Error(
-      msg.startsWith('Fișierul') || msg.startsWith('Folderul')
-        ? msg
-        : 'Fișierul de backup nu poate fi citit ca bază de date SQLite.'
-    )
+    if (msg.startsWith('Fișierul') || msg.startsWith('Folderul')) throw err
+    throw new Error('Fișierul de backup nu poate fi citit ca bază de date SQLite.', {
+      cause: err
+    })
   } finally {
     db?.close()
   }

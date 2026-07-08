@@ -57,6 +57,10 @@ export function Rapoarte(): React.JSX.Element {
         }
       />
 
+      {eroare ? (
+        <EroareIncarcare mesaj={eroare} />
+      ) : (
+        <>
       <Paper withBorder radius="lg" p="lg" mb="lg">
         <Text fw={600} mb="md">
           Vânzări și profit pe luni ({an})
@@ -214,6 +218,8 @@ export function Rapoarte(): React.JSX.Element {
           </Table>
         </ScrollArea>
       </Paper>
+        </>
+      )}
     </>
   )
 }
