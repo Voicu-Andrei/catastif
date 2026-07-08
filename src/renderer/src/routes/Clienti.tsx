@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   ActionIcon,
   Badge,
@@ -15,12 +15,13 @@ import {
   TextInput
 } from '@mantine/core'
 import { useDisclosure } from '@mantine/hooks'
+import { useSearchParams } from 'react-router-dom'
 import { useForm } from '@mantine/form'
 import { notifications } from '@mantine/notifications'
 import { modals } from '@mantine/modals'
 import { IconPencil, IconTrash, IconUsers } from '@tabler/icons-react'
 import type { Client, ClientInput, TipClient } from '@shared/types'
-import { PageHeader, ComingSoon, EroareIncarcare } from '../components/Placeholder'
+import { PageHeader, ComingSoon, EroareIncarcare, ListaSkeleton } from '../components/Placeholder'
 import { ListToolbar } from '../components/ListToolbar'
 import { FileAttachments } from '../components/FileAttachments'
 import { useList } from '../lib/useList'
@@ -48,11 +49,22 @@ export function Clienti(): React.JSX.Element {
   const [search, setSearch] = useState('')
   const [editing, setEditing] = useState<Client | null>(null)
   const [opened, { open, close }] = useDisclosure(false)
+  const [searchParams, setSearchParams] = useSearchParams()
   const form = useForm<ClientInput>({
     initialValues: EMPTY,
     validate: { nume: (v) => (v.trim() ? null : 'Numele este obligatoriu') }
   })
   const tip = form.values.tip
+
+  // Deschide direct fișa clientului venind din căutarea globală (?edit=<id>).
+  useEffect(() => {
+    const editId = searchParams.get('edit')
+    if (!editId || loading) return
+    const c = items.find((x) => x.id === Number(editId))
+    setSearchParams({}, { replace: true })
+    if (c) openEdit(c)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items, loading, searchParams])
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -155,7 +167,9 @@ export function Clienti(): React.JSX.Element {
 
       {error ? (
         <EroareIncarcare mesaj={error} onRetry={reload} />
-      ) : !loading && items.length === 0 ? (
+      ) : loading ? (
+        <ListaSkeleton />
+      ) : items.length === 0 ? (
         <ComingSoon
           icon={<IconUsers size={34} />}
           title="Niciun client încă"
@@ -210,6 +224,15 @@ export function Clienti(): React.JSX.Element {
                     </Table.Td>
                   </Table.Tr>
                 ))}
+                {filtered.length === 0 && (
+                  <Table.Tr>
+                    <Table.Td colSpan={6}>
+                      <Text c="dimmed" size="sm" ta="center" py="md">
+                        Niciun rezultat pentru căutarea curentă.
+                      </Text>
+                    </Table.Td>
+                  </Table.Tr>
+                )}
               </Table.Tbody>
             </Table>
           </ScrollArea>

@@ -11,7 +11,13 @@ export function searchGlobal(q: string): SearchResult[] {
   for (const p of db
     .prepare('SELECT id, nume FROM produse WHERE nume LIKE ? ORDER BY nume LIMIT 6')
     .all(like) as { id: number; nume: string }[]) {
-    out.push({ tip: 'produs', id: p.id, titlu: p.nume, subtitlu: 'Produs', link: '/produse' })
+    out.push({
+      tip: 'produs',
+      id: p.id,
+      titlu: p.nume,
+      subtitlu: 'Produs',
+      link: `/produse?edit=${p.id}`
+    })
   }
 
   for (const c of db
@@ -25,14 +31,20 @@ export function searchGlobal(q: string): SearchResult[] {
       id: c.id,
       titlu: c.nume,
       subtitlu: c.cod || 'Client',
-      link: '/clienti'
+      link: `/clienti?edit=${c.id}`
     })
   }
 
   for (const f of db
     .prepare('SELECT id, nume FROM furnizori WHERE nume LIKE ? OR cui LIKE ? ORDER BY nume LIMIT 6')
     .all(like, like) as { id: number; nume: string }[]) {
-    out.push({ tip: 'furnizor', id: f.id, titlu: f.nume, subtitlu: 'Furnizor', link: '/furnizori' })
+    out.push({
+      tip: 'furnizor',
+      id: f.id,
+      titlu: f.nume,
+      subtitlu: 'Furnizor',
+      link: `/furnizori?edit=${f.id}`
+    })
   }
 
   for (const o of db

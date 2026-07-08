@@ -41,6 +41,7 @@ import { STARE_META } from '../lib/stare'
 import { mesajEroare } from '../lib/erori'
 import { TVA_SELECT_DATA } from '../lib/tva'
 import { useSetari } from '../lib/useSetari'
+import { useGardaNesalvat } from '../lib/useGardaNesalvat'
 import { FileAttachments } from '../components/FileAttachments'
 
 interface LinieForm {
@@ -86,6 +87,7 @@ export function ComandaEditor(): React.JSX.Element {
   const form = useForm<ComandaForm>({
     initialValues: { numar: '', client_id: null, observatii: '', linii: [emptyLinie()] }
   })
+  useGardaNesalvat(form.isDirty())
 
   useEffect(() => {
     window.api.clienti.list().then(setClienti)
@@ -213,6 +215,7 @@ export function ComandaEditor(): React.JSX.Element {
       if (esteNou) {
         const c = await window.api.comenzi.create(payload)
         notifications.show({ color: 'teal', title: 'Salvat', message: 'Oferta a fost creată.' })
+        form.resetDirty()
         navigate(`/comenzi/${c.id}`)
       } else {
         const c = await window.api.comenzi.update(comandaId!, payload)
@@ -285,6 +288,7 @@ export function ComandaEditor(): React.JSX.Element {
       onConfirm: async () => {
         try {
           await window.api.comenzi.delete(comandaId!)
+          form.resetDirty()
           navigate('/comenzi')
         } catch (err) {
           notifications.show({

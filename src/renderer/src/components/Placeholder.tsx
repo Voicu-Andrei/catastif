@@ -1,4 +1,14 @@
-import { Button, Center, Group, Paper, Stack, Text, ThemeIcon, Title } from '@mantine/core'
+import {
+  Button,
+  Center,
+  Group,
+  Paper,
+  Skeleton,
+  Stack,
+  Text,
+  ThemeIcon,
+  Title
+} from '@mantine/core'
 import { IconAlertTriangle, IconRefresh } from '@tabler/icons-react'
 import type { ReactNode } from 'react'
 
@@ -25,6 +35,19 @@ export function PageHeader({
       </div>
       {action}
     </Group>
+  )
+}
+
+// Schelet afișat cât timp se încarcă o listă (evită tabelul gol înșelător).
+export function ListaSkeleton({ randuri = 6 }: { randuri?: number }): React.JSX.Element {
+  return (
+    <Paper withBorder radius="lg" p="lg">
+      <Stack gap="sm">
+        {Array.from({ length: randuri }).map((_, i) => (
+          <Skeleton key={i} height={34} radius="sm" />
+        ))}
+      </Stack>
+    </Paper>
   )
 }
 

@@ -1,5 +1,16 @@
 import { useEffect, useState } from 'react'
-import { Button, Group, Paper, ScrollArea, Select, SimpleGrid, Table, Text } from '@mantine/core'
+import {
+  Box,
+  Button,
+  Group,
+  LoadingOverlay,
+  Paper,
+  ScrollArea,
+  Select,
+  SimpleGrid,
+  Table,
+  Text
+} from '@mantine/core'
 import { BarChart } from '@mantine/charts'
 import { IconPrinter } from '@tabler/icons-react'
 import type { RaportData } from '@shared/types'
@@ -73,7 +84,8 @@ export function Rapoarte(): React.JSX.Element {
       {eroare ? (
         <EroareIncarcare mesaj={eroare} />
       ) : (
-        <>
+        <Box pos="relative">
+          <LoadingOverlay visible={!data} />
           <Paper withBorder radius="lg" p="lg" mb="lg">
             <Text fw={600} mb="md">
               Vânzări și profit pe luni ({an})
@@ -234,7 +246,7 @@ export function Rapoarte(): React.JSX.Element {
               </Table>
             </ScrollArea>
           </Paper>
-        </>
+        </Box>
       )}
     </>
   )

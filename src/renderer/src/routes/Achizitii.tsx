@@ -3,7 +3,7 @@ import { Paper, ScrollArea, Table, Text } from '@mantine/core'
 import { useNavigate } from 'react-router-dom'
 import { IconShoppingCart } from '@tabler/icons-react'
 import type { AchizitieCuExtra } from '@shared/types'
-import { PageHeader, ComingSoon, EroareIncarcare } from '../components/Placeholder'
+import { PageHeader, ComingSoon, EroareIncarcare, ListaSkeleton } from '../components/Placeholder'
 import { ListToolbar } from '../components/ListToolbar'
 import { useList } from '../lib/useList'
 import { formatLei, formatData } from '../lib/format'
@@ -36,7 +36,9 @@ export function Achizitii(): React.JSX.Element {
 
       {error ? (
         <EroareIncarcare mesaj={error} onRetry={reload} />
-      ) : !loading && items.length === 0 ? (
+      ) : loading ? (
+        <ListaSkeleton />
+      ) : items.length === 0 ? (
         <ComingSoon
           icon={<IconShoppingCart size={34} />}
           title="Nicio achiziție încă"
@@ -71,6 +73,15 @@ export function Achizitii(): React.JSX.Element {
                     <Table.Td ta="right">{formatLei(a.total)}</Table.Td>
                   </Table.Tr>
                 ))}
+                {filtered.length === 0 && (
+                  <Table.Tr>
+                    <Table.Td colSpan={5}>
+                      <Text c="dimmed" size="sm" ta="center" py="md">
+                        Niciun rezultat pentru căutarea curentă.
+                      </Text>
+                    </Table.Td>
+                  </Table.Tr>
+                )}
               </Table.Tbody>
             </Table>
           </ScrollArea>

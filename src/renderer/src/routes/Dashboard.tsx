@@ -1,5 +1,14 @@
 import { useEffect, useState } from 'react'
-import { Group, Paper, SimpleGrid, Stack, Text, ThemeIcon, UnstyledButton } from '@mantine/core'
+import {
+  Group,
+  Paper,
+  SimpleGrid,
+  Skeleton,
+  Stack,
+  Text,
+  ThemeIcon,
+  UnstyledButton
+} from '@mantine/core'
 import { useNavigate } from 'react-router-dom'
 import {
   IconCash,
@@ -19,7 +28,7 @@ import { STARE_META } from '../lib/stare'
 
 interface StatProps {
   label: string
-  value: string
+  value: string | null // null = încă se încarcă
   icon: ReactNode
   color?: string
   hint?: string
@@ -58,9 +67,13 @@ function StatCard({
             <Text size="sm" c="dimmed">
               {label}
             </Text>
-            <Text fz={28} fw={700} style={{ letterSpacing: '-0.03em' }}>
-              {value}
-            </Text>
+            {value == null ? (
+              <Skeleton height={34} width={96} radius="sm" />
+            ) : (
+              <Text fz={28} fw={700} style={{ letterSpacing: '-0.03em' }}>
+                {value}
+              </Text>
+            )}
             {hint && (
               <Text size="xs" c="dimmed">
                 {hint}
@@ -113,35 +126,35 @@ export function Dashboard(): React.JSX.Element {
       <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="lg">
         <StatCard
           label="De încasat"
-          value={formatLei(d?.de_incasat ?? 0)}
+          value={d ? formatLei(d.de_incasat) : null}
           icon={<IconCash size={24} />}
           hint="Sume rămase pe comenzi"
           onClick={() => navigate('/comenzi')}
         />
         <StatCard
           label="Comenzi active"
-          value={String(d?.comenzi_active ?? 0)}
+          value={d ? String(d.comenzi_active) : null}
           icon={<IconClipboardList size={24} />}
           color="blue"
           onClick={() => navigate('/comenzi')}
         />
         <StatCard
           label="Oferte în așteptare"
-          value={String(d?.oferte_in_asteptare ?? 0)}
+          value={d ? String(d.oferte_in_asteptare) : null}
           icon={<IconFileText size={24} />}
           color="grape"
           onClick={() => navigate('/comenzi')}
         />
         <StatCard
           label="Profit (luna curentă)"
-          value={formatLei(d?.profit_luna ?? 0)}
+          value={d ? formatLei(d.profit_luna) : null}
           icon={<IconReportMoney size={24} />}
           color="teal"
           onClick={() => navigate('/rapoarte')}
         />
         <StatCard
           label="Stoc scăzut"
-          value={String(d?.stoc_scazut ?? 0)}
+          value={d ? String(d.stoc_scazut) : null}
           icon={<IconPackages size={24} />}
           color="orange"
           onClick={() => navigate('/produse')}
@@ -160,7 +173,13 @@ export function Dashboard(): React.JSX.Element {
         <Text fw={600} mb="sm">
           Activitate recentă
         </Text>
-        {!d || d.activitate.length === 0 ? (
+        {!d ? (
+          <Stack gap="xs">
+            <Skeleton height={30} radius="sm" />
+            <Skeleton height={30} radius="sm" />
+            <Skeleton height={30} radius="sm" />
+          </Stack>
+        ) : d.activitate.length === 0 ? (
           <Text c="dimmed" size="sm">
             Pe măsură ce adaugi comenzi, plăți și achiziții, ultimele activități vor apărea aici.
           </Text>

@@ -17,12 +17,13 @@ import {
   TextInput
 } from '@mantine/core'
 import { useDisclosure } from '@mantine/hooks'
+import { useSearchParams } from 'react-router-dom'
 import { useForm } from '@mantine/form'
 import { notifications } from '@mantine/notifications'
 import { modals } from '@mantine/modals'
 import { IconBox, IconPencil, IconTrash } from '@tabler/icons-react'
 import type { Furnizor, Produs, ProdusInput } from '@shared/types'
-import { PageHeader, ComingSoon, EroareIncarcare } from '../components/Placeholder'
+import { PageHeader, ComingSoon, EroareIncarcare, ListaSkeleton } from '../components/Placeholder'
 import { ListToolbar } from '../components/ListToolbar'
 import { FileAttachments } from '../components/FileAttachments'
 import { useList } from '../lib/useList'
@@ -66,6 +67,7 @@ export function Produse(): React.JSX.Element {
   const [search, setSearch] = useState('')
   const [editing, setEditing] = useState<Produs | null>(null)
   const [opened, { open, close }] = useDisclosure(false)
+  const [searchParams, setSearchParams] = useSearchParams()
   const form = useForm<ProdusForm>({
     initialValues: EMPTY,
     validate: { nume: (v) => (v.trim() ? null : 'Numele este obligatoriu') }
@@ -74,6 +76,16 @@ export function Produse(): React.JSX.Element {
   useEffect(() => {
     window.api.furnizori.list().then(setFurnizori)
   }, [])
+
+  // Deschide direct fișa produsului venind din căutarea globală (?edit=<id>).
+  useEffect(() => {
+    const editId = searchParams.get('edit')
+    if (!editId || loading) return
+    const p = items.find((x) => x.id === Number(editId))
+    setSearchParams({}, { replace: true })
+    if (p) openEdit(p)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items, loading, searchParams])
 
   const furnizoriOptions = useMemo(
     () => furnizori.map((f) => ({ value: String(f.id), label: f.nume })),
@@ -180,7 +192,9 @@ export function Produse(): React.JSX.Element {
 
       {error ? (
         <EroareIncarcare mesaj={error} onRetry={reload} />
-      ) : !loading && items.length === 0 ? (
+      ) : loading ? (
+        <ListaSkeleton />
+      ) : items.length === 0 ? (
         <ComingSoon
           icon={<IconBox size={34} />}
           title="Niciun produs încă"
@@ -259,6 +273,15 @@ export function Produse(): React.JSX.Element {
                     </Table.Tr>
                   )
                 })}
+                {filtered.length === 0 && (
+                  <Table.Tr>
+                    <Table.Td colSpan={7}>
+                      <Text c="dimmed" size="sm" ta="center" py="md">
+                        Niciun rezultat pentru căutarea curentă.
+                      </Text>
+                    </Table.Td>
+                  </Table.Tr>
+                )}
               </Table.Tbody>
             </Table>
           </ScrollArea>

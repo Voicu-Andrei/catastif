@@ -27,6 +27,7 @@ import type { AchizitieDetaliu, AchizitieInput, Furnizor, Produs } from '@shared
 import { baniToLei, leiToBani } from '../lib/money'
 import { formatLei } from '../lib/format'
 import { mesajEroare } from '../lib/erori'
+import { useGardaNesalvat } from '../lib/useGardaNesalvat'
 import { FileAttachments } from '../components/FileAttachments'
 
 interface LinieForm {
@@ -72,6 +73,7 @@ export function AchizitieEditor(): React.JSX.Element {
       linii: [emptyLinie()]
     }
   })
+  useGardaNesalvat(form.isDirty())
 
   useEffect(() => {
     window.api.furnizori.list().then(setFurnizori)
@@ -168,6 +170,7 @@ export function AchizitieEditor(): React.JSX.Element {
       if (esteNou) saved = await window.api.achizitii.create(payload)
       else saved = await window.api.achizitii.update(achizitieId!, payload)
       notifications.show({ color: 'teal', title: 'Salvat', message: 'Achiziția a fost salvată.' })
+      form.resetDirty()
       navigate(`/achizitii/${saved.id}`)
     } catch (err) {
       notifications.show({ color: 'red', title: 'Eroare', message: mesajEroare(err) })
@@ -187,6 +190,7 @@ export function AchizitieEditor(): React.JSX.Element {
       onConfirm: async () => {
         try {
           await window.api.achizitii.delete(achizitieId!)
+          form.resetDirty()
           navigate('/achizitii')
         } catch (err) {
           notifications.show({

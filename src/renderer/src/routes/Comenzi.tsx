@@ -3,7 +3,7 @@ import { Badge, Group, Paper, ScrollArea, SegmentedControl, Table, Text } from '
 import { useNavigate } from 'react-router-dom'
 import { IconClipboardList } from '@tabler/icons-react'
 import type { ComandaCuExtra, StareComanda } from '@shared/types'
-import { PageHeader, ComingSoon, EroareIncarcare } from '../components/Placeholder'
+import { PageHeader, ComingSoon, EroareIncarcare, ListaSkeleton } from '../components/Placeholder'
 import { ListToolbar } from '../components/ListToolbar'
 import { formatLei, formatData } from '../lib/format'
 import { STARE_META } from '../lib/stare'
@@ -66,7 +66,9 @@ export function Comenzi(): React.JSX.Element {
 
       {error ? (
         <EroareIncarcare mesaj={error} onRetry={reload} />
-      ) : !loading && items.length === 0 ? (
+      ) : loading ? (
+        <ListaSkeleton />
+      ) : items.length === 0 ? (
         <ComingSoon
           icon={<IconClipboardList size={34} />}
           title="Nicio comandă încă"
@@ -122,6 +124,15 @@ export function Comenzi(): React.JSX.Element {
                     </Table.Tr>
                   )
                 })}
+                {filtered.length === 0 && (
+                  <Table.Tr>
+                    <Table.Td colSpan={7}>
+                      <Text c="dimmed" size="sm" ta="center" py="md">
+                        Niciun rezultat pentru căutarea curentă.
+                      </Text>
+                    </Table.Td>
+                  </Table.Tr>
+                )}
               </Table.Tbody>
             </Table>
           </ScrollArea>
