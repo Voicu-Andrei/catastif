@@ -1,13 +1,5 @@
 import { useEffect, useState } from 'react'
-import {
-  Group,
-  Paper,
-  SimpleGrid,
-  Stack,
-  Text,
-  ThemeIcon,
-  UnstyledButton
-} from '@mantine/core'
+import { Group, Paper, SimpleGrid, Stack, Text, ThemeIcon, UnstyledButton } from '@mantine/core'
 import { useNavigate } from 'react-router-dom'
 import {
   IconCash,
@@ -35,9 +27,21 @@ interface StatProps {
   dezactivat?: boolean
 }
 
-function StatCard({ label, value, icon, color = 'brand', hint, onClick, dezactivat }: StatProps): React.JSX.Element {
+function StatCard({
+  label,
+  value,
+  icon,
+  color = 'brand',
+  hint,
+  onClick,
+  dezactivat
+}: StatProps): React.JSX.Element {
   return (
-    <UnstyledButton onClick={onClick} disabled={dezactivat || !onClick} style={{ borderRadius: 'var(--mantine-radius-lg)' }}>
+    <UnstyledButton
+      onClick={onClick}
+      disabled={dezactivat || !onClick}
+      style={{ borderRadius: 'var(--mantine-radius-lg)' }}
+    >
       <Paper
         withBorder
         radius="lg"
@@ -164,7 +168,13 @@ export function Dashboard(): React.JSX.Element {
           <Stack gap={4}>
             {d.activitate.map((a, i) => (
               <UnstyledButton key={i} onClick={() => navigate(a.link)}>
-                <Group justify="space-between" wrap="nowrap" p="xs" style={{ borderRadius: 8 }} className="activity-row">
+                <Group
+                  justify="space-between"
+                  wrap="nowrap"
+                  p="xs"
+                  style={{ borderRadius: 8 }}
+                  className="activity-row"
+                >
                   <Group gap="sm" wrap="nowrap">
                     <ThemeIcon
                       size="md"

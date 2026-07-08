@@ -1,13 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import {
-  Badge,
-  Group,
-  Paper,
-  ScrollArea,
-  SegmentedControl,
-  Table,
-  Text
-} from '@mantine/core'
+import { Badge, Group, Paper, ScrollArea, SegmentedControl, Table, Text } from '@mantine/core'
 import { useNavigate } from 'react-router-dom'
 import { IconClipboardList } from '@tabler/icons-react'
 import type { ComandaCuExtra, StareComanda } from '@shared/types'
@@ -42,14 +34,15 @@ export function Comenzi(): React.JSX.Element {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
     if (!q) return items
-    return items.filter((c) =>
-      [c.numar, c.client_nume].some((x) => x?.toLowerCase().includes(q))
-    )
+    return items.filter((c) => [c.numar, c.client_nume].some((x) => x?.toLowerCase().includes(q)))
   }, [items, search])
 
   return (
     <>
-      <PageHeader title="Comenzi" subtitle="Oferte și comenzi, cu profit calculat pe fiecare linie" />
+      <PageHeader
+        title="Comenzi"
+        subtitle="Oferte și comenzi, cu profit calculat pe fiecare linie"
+      />
 
       <Group justify="space-between" mb="md" wrap="wrap">
         <SegmentedControl

@@ -74,7 +74,9 @@ export function registerEntitiesIpc(): void {
   ipcMain.handle('comenzi:list', (_e, stare?: StareComanda) => listComenzi(stare))
   ipcMain.handle('comenzi:get', (_e, id: number) => getComanda(id))
   ipcMain.handle('comenzi:create', (_e, input: ComandaInput) => createComanda(input))
-  ipcMain.handle('comenzi:update', (_e, id: number, input: ComandaInput) => updateComanda(id, input))
+  ipcMain.handle('comenzi:update', (_e, id: number, input: ComandaInput) =>
+    updateComanda(id, input)
+  )
   ipcMain.handle('comenzi:accepta', (_e, id: number) => acceptaComanda(id))
   ipcMain.handle('comenzi:anuleaza', (_e, id: number) => anuleazaComanda(id))
   ipcMain.handle('comenzi:plata', (_e, id: number, suma: number) => inregistreazaPlata(id, suma))

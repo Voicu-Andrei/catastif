@@ -61,7 +61,12 @@ export function FileAttachments({
     <Paper withBorder radius="lg" p="lg">
       <Group justify="space-between" mb="sm">
         <Text fw={600}>Fișiere</Text>
-        <Button size="xs" variant="light" leftSection={<IconPaperclip size={16} />} onClick={adauga}>
+        <Button
+          size="xs"
+          variant="light"
+          leftSection={<IconPaperclip size={16} />}
+          onClick={adauga}
+        >
           Atașează
         </Button>
       </Group>
@@ -98,7 +103,12 @@ export function FileAttachments({
                   </Text>
                 </div>
               </Group>
-              <ActionIcon variant="subtle" color="red" onClick={() => sterge(f)} aria-label="Șterge">
+              <ActionIcon
+                variant="subtle"
+                color="red"
+                onClick={() => sterge(f)}
+                aria-label="Șterge"
+              >
                 <IconTrash size={18} />
               </ActionIcon>
             </Group>

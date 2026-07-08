@@ -115,8 +115,7 @@ export function updateComanda(id: number, input: ComandaInput): ComandaDetaliu {
   const t = calcComanda(toCalc(input.linii))
   const tx = db.transaction(() => {
     const cur = db.prepare('SELECT stare FROM comenzi WHERE id=?').get(id) as
-      | { stare: StareComanda }
-      | undefined
+      { stare: StareComanda } | undefined
     if (!cur) throw new Error('Comanda nu există.')
     // O comandă confirmată a scăzut deja stocul. Anulăm efectul liniilor vechi
     // și aplicăm efectul celor noi, ca stocul să reflecte mereu liniile curente.
@@ -170,8 +169,7 @@ export function anuleazaComanda(id: number): ComandaDetaliu {
   const db = getDb()
   const tx = db.transaction(() => {
     const c = db.prepare('SELECT stare FROM comenzi WHERE id=?').get(id) as
-      | { stare: StareComanda }
-      | undefined
+      { stare: StareComanda } | undefined
     if (!c) throw new Error('Comanda nu există.')
     if (c.stare === 'anulata') return // deja anulată — nu suprascriem data anulării
     db.prepare(
@@ -190,8 +188,7 @@ export function inregistreazaPlata(id: number, suma: number): ComandaDetaliu {
   valideazaSumaPlata(suma)
   const db = getDb()
   const c = db.prepare('SELECT stare, achitat FROM comenzi WHERE id=?').get(id) as
-    | { stare: StareComanda; achitat: number }
-    | undefined
+    { stare: StareComanda; achitat: number } | undefined
   if (!c) throw new Error('Comanda nu există.')
   if (c.stare === 'anulata') {
     throw new Error('Nu se pot înregistra plăți pe o comandă anulată.')
@@ -217,8 +214,7 @@ export function inregistreazaPlata(id: number, suma: number): ComandaDetaliu {
 export function deleteComanda(id: number): void {
   const db = getDb()
   const c = db.prepare('SELECT stare FROM comenzi WHERE id=?').get(id) as
-    | { stare: StareComanda }
-    | undefined
+    { stare: StareComanda } | undefined
   if (!c) return
   if (c.stare !== 'oferta') {
     throw new Error('Doar ofertele pot fi șterse. Comenzile se anulează și rămân în istoric.')

@@ -23,7 +23,18 @@ describe('migrații', () => {
       .prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
       .all()
       .map((r) => (r as { name: string }).name)
-    for (const t of ['setari', 'clienti', 'produse', 'furnizori', 'comenzi', 'linii_comanda', 'achizitii', 'linii_achizitie', 'facturi', 'fisiere']) {
+    for (const t of [
+      'setari',
+      'clienti',
+      'produse',
+      'furnizori',
+      'comenzi',
+      'linii_comanda',
+      'achizitii',
+      'linii_achizitie',
+      'facturi',
+      'fisiere'
+    ]) {
       expect(tabele).toContain(t)
     }
   })

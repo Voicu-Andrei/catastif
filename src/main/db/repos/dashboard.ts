@@ -26,7 +26,9 @@ export function getDashboard(): DashboardData {
 
   const oferte = scalar("SELECT COUNT(*) v FROM comenzi WHERE stare='oferta'")
   const active = scalar("SELECT COUNT(*) v FROM comenzi WHERE stare='comanda'")
-  const deIncasat = scalar("SELECT COALESCE(SUM(total-achitat),0) v FROM comenzi WHERE stare='comanda'")
+  const deIncasat = scalar(
+    "SELECT COALESCE(SUM(total-achitat),0) v FROM comenzi WHERE stare='comanda'"
+  )
   const profitLuna = scalar(`
     SELECT COALESCE(SUM((l.pret_unitar - l.cost_unitar) * l.cantitate), 0) v
     FROM linii_comanda l JOIN comenzi c ON c.id = l.comanda_id

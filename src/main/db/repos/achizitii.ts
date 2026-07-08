@@ -21,9 +21,7 @@ const totalLinii = (linii: LinieAchizitieInput[]): number =>
   linii.reduce((s, l) => s + Math.round(l.cantitate * l.cost_unitar), 0)
 
 export function listAchizitii(): AchizitieCuExtra[] {
-  return getDb()
-    .prepare(`${LIST_SQL} ORDER BY a.data DESC, a.id DESC`)
-    .all() as AchizitieCuExtra[]
+  return getDb().prepare(`${LIST_SQL} ORDER BY a.data DESC, a.id DESC`).all() as AchizitieCuExtra[]
 }
 
 export function getAchizitie(id: number): AchizitieDetaliu | undefined {

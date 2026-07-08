@@ -114,7 +114,11 @@ export function Furnizori(): React.JSX.Element {
           await window.api.furnizori.delete(f.id)
           notifications.show({ color: 'gray', title: 'Șters', message: 'Furnizorul a fost șters.' })
         } catch (err) {
-          notifications.show({ color: 'red', title: 'Nu se poate șterge', message: mesajEroare(err) })
+          notifications.show({
+            color: 'red',
+            title: 'Nu se poate șterge',
+            message: mesajEroare(err)
+          })
         }
         reload()
       }
@@ -124,7 +128,12 @@ export function Furnizori(): React.JSX.Element {
   return (
     <>
       <PageHeader title="Furnizori" subtitle="Persoanele de la care cumpărați" />
-      <ListToolbar search={search} onSearch={setSearch} onAdd={openCreate} addLabel="Adaugă furnizor" />
+      <ListToolbar
+        search={search}
+        onSearch={setSearch}
+        onAdd={openCreate}
+        addLabel="Adaugă furnizor"
+      />
 
       {error ? (
         <EroareIncarcare mesaj={error} onRetry={reload} />
@@ -160,7 +169,11 @@ export function Furnizori(): React.JSX.Element {
                     </Table.Td>
                     <Table.Td>
                       <Group gap={4} justify="flex-end" wrap="nowrap">
-                        <ActionIcon variant="subtle" onClick={() => openEdit(f)} aria-label="Editează">
+                        <ActionIcon
+                          variant="subtle"
+                          onClick={() => openEdit(f)}
+                          aria-label="Editează"
+                        >
                           <IconPencil size={18} />
                         </ActionIcon>
                         <ActionIcon

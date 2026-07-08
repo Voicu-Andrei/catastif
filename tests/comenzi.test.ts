@@ -25,7 +25,11 @@ const PRODUS: ProdusInput = {
   furnizor_id: null
 }
 
-function linie(produsId: number | null, cantitate: number, extra?: Partial<LinieComandaInput>): LinieComandaInput {
+function linie(
+  produsId: number | null,
+  cantitate: number,
+  extra?: Partial<LinieComandaInput>
+): LinieComandaInput {
   return {
     produs_id: produsId,
     descriere: 'Fereastră PVC 120×150',
@@ -44,7 +48,12 @@ afterEach(() => closeDb())
 
 describe('ciclul de viață al comenzii', () => {
   it('creează o ofertă cu număr automat și totaluri persistate', () => {
-    const c = createComanda({ numar: null, client_id: null, observatii: null, linii: [linie(null, 2)] })
+    const c = createComanda({
+      numar: null,
+      client_id: null,
+      observatii: null,
+      linii: [linie(null, 2)]
+    })
     expect(c.stare).toBe('oferta')
     expect(c.numar).toBe('C' + String(c.id).padStart(4, '0'))
     expect(c.total_fara_tva).toBe(100000)
@@ -55,7 +64,12 @@ describe('ciclul de viață al comenzii', () => {
 
   it('oferta nu mișcă stocul; acceptarea îl scade; anularea îl restituie', () => {
     const p = createProdus(PRODUS)
-    const c = createComanda({ numar: null, client_id: null, observatii: null, linii: [linie(p.id, 3)] })
+    const c = createComanda({
+      numar: null,
+      client_id: null,
+      observatii: null,
+      linii: [linie(p.id, 3)]
+    })
     expect(getProdus(p.id)!.stoc_curent).toBe(10)
 
     acceptaComanda(c.id)
@@ -67,7 +81,12 @@ describe('ciclul de viață al comenzii', () => {
 
   it('anularea repetată nu restituie stocul de două ori și nu schimbă data anulării', () => {
     const p = createProdus(PRODUS)
-    const c = createComanda({ numar: null, client_id: null, observatii: null, linii: [linie(p.id, 3)] })
+    const c = createComanda({
+      numar: null,
+      client_id: null,
+      observatii: null,
+      linii: [linie(p.id, 3)]
+    })
     acceptaComanda(c.id)
     const prima = anuleazaComanda(c.id)
     const aDoua = anuleazaComanda(c.id)
@@ -77,7 +96,12 @@ describe('ciclul de viață al comenzii', () => {
 
   it('produsele fără track_stock nu sunt afectate', () => {
     const p = createProdus({ ...PRODUS, track_stock: false, stoc_curent: 0 })
-    const c = createComanda({ numar: null, client_id: null, observatii: null, linii: [linie(p.id, 5)] })
+    const c = createComanda({
+      numar: null,
+      client_id: null,
+      observatii: null,
+      linii: [linie(p.id, 5)]
+    })
     acceptaComanda(c.id)
     expect(getProdus(p.id)!.stoc_curent).toBe(0)
   })
@@ -86,23 +110,48 @@ describe('ciclul de viață al comenzii', () => {
 describe('updateComanda și stocul', () => {
   it('editarea unei comenzi confirmate ajustează stocul la noile cantități', () => {
     const p = createProdus(PRODUS)
-    const c = createComanda({ numar: null, client_id: null, observatii: null, linii: [linie(p.id, 3)] })
+    const c = createComanda({
+      numar: null,
+      client_id: null,
+      observatii: null,
+      linii: [linie(p.id, 3)]
+    })
     acceptaComanda(c.id)
     expect(getProdus(p.id)!.stoc_curent).toBe(7)
 
     // Crește cantitatea 3 → 5: stocul trebuie să scadă cu încă 2.
-    updateComanda(c.id, { numar: c.numar, client_id: null, observatii: null, linii: [linie(p.id, 5)] })
+    updateComanda(c.id, {
+      numar: c.numar,
+      client_id: null,
+      observatii: null,
+      linii: [linie(p.id, 5)]
+    })
     expect(getProdus(p.id)!.stoc_curent).toBe(5)
 
     // Scoate produsul de pe linie: stocul revine complet.
-    updateComanda(c.id, { numar: c.numar, client_id: null, observatii: null, linii: [linie(null, 5)] })
+    updateComanda(c.id, {
+      numar: c.numar,
+      client_id: null,
+      observatii: null,
+      linii: [linie(null, 5)]
+    })
     expect(getProdus(p.id)!.stoc_curent).toBe(10)
   })
 
   it('editarea unei oferte nu mișcă stocul', () => {
     const p = createProdus(PRODUS)
-    const c = createComanda({ numar: null, client_id: null, observatii: null, linii: [linie(p.id, 3)] })
-    updateComanda(c.id, { numar: c.numar, client_id: null, observatii: null, linii: [linie(p.id, 8)] })
+    const c = createComanda({
+      numar: null,
+      client_id: null,
+      observatii: null,
+      linii: [linie(p.id, 3)]
+    })
+    updateComanda(c.id, {
+      numar: c.numar,
+      client_id: null,
+      observatii: null,
+      linii: [linie(p.id, 8)]
+    })
     expect(getProdus(p.id)!.stoc_curent).toBe(10)
   })
 })
@@ -110,7 +159,12 @@ describe('updateComanda și stocul', () => {
 describe('plăți', () => {
   it('prima plată transformă oferta în comandă și scade stocul', () => {
     const p = createProdus(PRODUS)
-    const c = createComanda({ numar: null, client_id: null, observatii: null, linii: [linie(p.id, 2)] })
+    const c = createComanda({
+      numar: null,
+      client_id: null,
+      observatii: null,
+      linii: [linie(p.id, 2)]
+    })
     const dupa = inregistreazaPlata(c.id, 50000)
     expect(dupa.stare).toBe('comanda')
     expect(dupa.achitat).toBe(50000)
@@ -119,13 +173,23 @@ describe('plăți', () => {
   })
 
   it('plățile pe o comandă anulată sunt respinse', () => {
-    const c = createComanda({ numar: null, client_id: null, observatii: null, linii: [linie(null, 1)] })
+    const c = createComanda({
+      numar: null,
+      client_id: null,
+      observatii: null,
+      linii: [linie(null, 1)]
+    })
     anuleazaComanda(c.id)
     expect(() => inregistreazaPlata(c.id, 1000)).toThrow(/anulată/)
   })
 
   it('o corecție negativă nu duce achitatul sub zero', () => {
-    const c = createComanda({ numar: null, client_id: null, observatii: null, linii: [linie(null, 1)] })
+    const c = createComanda({
+      numar: null,
+      client_id: null,
+      observatii: null,
+      linii: [linie(null, 1)]
+    })
     inregistreazaPlata(c.id, 10000)
     const dupa = inregistreazaPlata(c.id, -99999)
     expect(dupa.achitat).toBe(0)
@@ -134,14 +198,24 @@ describe('plăți', () => {
 
 describe('deleteComanda', () => {
   it('șterge o ofertă împreună cu liniile ei', () => {
-    const c = createComanda({ numar: null, client_id: null, observatii: null, linii: [linie(null, 1)] })
+    const c = createComanda({
+      numar: null,
+      client_id: null,
+      observatii: null,
+      linii: [linie(null, 1)]
+    })
     deleteComanda(c.id)
     expect(getComanda(c.id)).toBeUndefined()
   })
 
   it('refuză ștergerea unei comenzi confirmate (stocul ar rămâne greșit)', () => {
     const p = createProdus(PRODUS)
-    const c = createComanda({ numar: null, client_id: null, observatii: null, linii: [linie(p.id, 3)] })
+    const c = createComanda({
+      numar: null,
+      client_id: null,
+      observatii: null,
+      linii: [linie(p.id, 3)]
+    })
     acceptaComanda(c.id)
     expect(() => deleteComanda(c.id)).toThrow(/anulează/)
     expect(getComanda(c.id)).toBeDefined()
@@ -149,7 +223,12 @@ describe('deleteComanda', () => {
   })
 
   it('refuză ștergerea unei comenzi anulate (istoric)', () => {
-    const c = createComanda({ numar: null, client_id: null, observatii: null, linii: [linie(null, 1)] })
+    const c = createComanda({
+      numar: null,
+      client_id: null,
+      observatii: null,
+      linii: [linie(null, 1)]
+    })
     anuleazaComanda(c.id)
     expect(() => deleteComanda(c.id)).toThrow()
   })

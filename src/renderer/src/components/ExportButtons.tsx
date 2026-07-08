@@ -26,7 +26,12 @@ export function ExportButtons({
   return (
     <Menu shadow="md" position="bottom-end">
       <Menu.Target>
-        <Button size="xs" variant="light" leftSection={<IconDownload size={16} />} disabled={disabled}>
+        <Button
+          size="xs"
+          variant="light"
+          leftSection={<IconDownload size={16} />}
+          disabled={disabled}
+        >
           Exportă
         </Button>
       </Menu.Target>

@@ -146,7 +146,12 @@ export function Clienti(): React.JSX.Element {
   return (
     <>
       <PageHeader title="Clienți" subtitle="Firme și persoane fizice" />
-      <ListToolbar search={search} onSearch={setSearch} onAdd={openCreate} addLabel="Adaugă client" />
+      <ListToolbar
+        search={search}
+        onSearch={setSearch}
+        onAdd={openCreate}
+        addLabel="Adaugă client"
+      />
 
       {error ? (
         <EroareIncarcare mesaj={error} onRetry={reload} />
@@ -186,7 +191,11 @@ export function Clienti(): React.JSX.Element {
                     <Table.Td onClick={() => openEdit(c)}>{c.oras ?? '—'}</Table.Td>
                     <Table.Td>
                       <Group gap={4} justify="flex-end" wrap="nowrap">
-                        <ActionIcon variant="subtle" onClick={() => openEdit(c)} aria-label="Editează">
+                        <ActionIcon
+                          variant="subtle"
+                          onClick={() => openEdit(c)}
+                          aria-label="Editează"
+                        >
                           <IconPencil size={18} />
                         </ActionIcon>
                         <ActionIcon

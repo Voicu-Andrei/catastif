@@ -46,16 +46,14 @@ export async function attachFisiere(
 
 export function openFisier(id: number): void {
   const f = getDb().prepare('SELECT cale FROM fisiere WHERE id = ?').get(id) as
-    | { cale: string }
-    | undefined
+    { cale: string } | undefined
   if (f) shell.openPath(join(attachmentsDir(), f.cale))
 }
 
 export function deleteFisier(id: number): void {
   const db = getDb()
   const f = db.prepare('SELECT cale FROM fisiere WHERE id = ?').get(id) as
-    | { cale: string }
-    | undefined
+    { cale: string } | undefined
   if (f) {
     const p = join(attachmentsDir(), f.cale)
     if (existsSync(p)) rmSync(p, { force: true })

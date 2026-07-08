@@ -22,12 +22,7 @@ import { useForm } from '@mantine/form'
 import { notifications } from '@mantine/notifications'
 import { modals } from '@mantine/modals'
 import { useNavigate, useParams } from 'react-router-dom'
-import {
-  IconArrowLeft,
-  IconCirclePlus,
-  IconDeviceFloppy,
-  IconTrash
-} from '@tabler/icons-react'
+import { IconArrowLeft, IconCirclePlus, IconDeviceFloppy, IconTrash } from '@tabler/icons-react'
 import type { AchizitieDetaliu, AchizitieInput, Furnizor, Produs } from '@shared/types'
 import { baniToLei, leiToBani } from '../lib/money'
 import { formatLei } from '../lib/format'
@@ -194,7 +189,11 @@ export function AchizitieEditor(): React.JSX.Element {
           await window.api.achizitii.delete(achizitieId!)
           navigate('/achizitii')
         } catch (err) {
-          notifications.show({ color: 'red', title: 'Nu se poate șterge', message: mesajEroare(err) })
+          notifications.show({
+            color: 'red',
+            title: 'Nu se poate șterge',
+            message: mesajEroare(err)
+          })
         }
       }
     })
@@ -204,7 +203,12 @@ export function AchizitieEditor(): React.JSX.Element {
     <>
       <Group justify="space-between" mb="lg" wrap="nowrap">
         <Group gap="sm" wrap="nowrap">
-          <ActionIcon variant="subtle" size="lg" onClick={() => navigate('/achizitii')} aria-label="Înapoi">
+          <ActionIcon
+            variant="subtle"
+            size="lg"
+            onClick={() => navigate('/achizitii')}
+            aria-label="Înapoi"
+          >
             <IconArrowLeft />
           </ActionIcon>
           <Title order={2} style={{ letterSpacing: '-0.02em' }}>
@@ -213,7 +217,12 @@ export function AchizitieEditor(): React.JSX.Element {
         </Group>
         <Group gap="sm">
           {!esteNou && (
-            <Button variant="subtle" color="red" leftSection={<IconTrash size={18} />} onClick={confirmaStergere}>
+            <Button
+              variant="subtle"
+              color="red"
+              leftSection={<IconTrash size={18} />}
+              onClick={confirmaStergere}
+            >
               Șterge
             </Button>
           )}

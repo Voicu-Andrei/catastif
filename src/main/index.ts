@@ -15,7 +15,8 @@ process.on('uncaughtException', (err) => {
   console.error('Eroare neașteptată în procesul principal:', err)
   dialog.showErrorBox(
     'Catastif — eroare neașteptată',
-    'A apărut o eroare neașteptată. Datele tale sunt salvate pe disc.\n\n' + String(err?.message ?? err)
+    'A apărut o eroare neașteptată. Datele tale sunt salvate pe disc.\n\n' +
+      String(err?.message ?? err)
   )
 })
 

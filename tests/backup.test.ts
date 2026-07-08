@@ -27,8 +27,18 @@ afterEach(() => closeDb())
 describe('backup + restaurare', () => {
   it('round-trip: datele din backup înlocuiesc datele curente', () => {
     const clientVechi = createClient({
-      tip: 'firma', nume: 'SC Geam SRL', cui: 'RO123', nr_reg_com: null, cnp: null,
-      adresa: null, judet: null, oras: null, cod_postal: null, telefon: null, email: null, note: null
+      tip: 'firma',
+      nume: 'SC Geam SRL',
+      cui: 'RO123',
+      nr_reg_com: null,
+      cnp: null,
+      adresa: null,
+      judet: null,
+      oras: null,
+      cod_postal: null,
+      telefon: null,
+      email: null,
+      note: null
     })
     const folder = tempDir()
     const dest = creeazaBackup(getDb(), paths(), folder)
@@ -36,8 +46,18 @@ describe('backup + restaurare', () => {
 
     // Modificăm datele după backup…
     createClient({
-      tip: 'persoana', nume: 'Ion Popescu', cui: null, nr_reg_com: null, cnp: null,
-      adresa: null, judet: null, oras: null, cod_postal: null, telefon: null, email: null, note: null
+      tip: 'persoana',
+      nume: 'Ion Popescu',
+      cui: null,
+      nr_reg_com: null,
+      cnp: null,
+      adresa: null,
+      judet: null,
+      oras: null,
+      cod_postal: null,
+      telefon: null,
+      email: null,
+      note: null
     })
     expect(getDb().prepare('SELECT COUNT(*) c FROM clienti').get()).toEqual({ c: 2 })
 
@@ -79,8 +99,18 @@ describe('backup + restaurare', () => {
 
   it('respinge un folder fără catastif.db fără să atingă datele curente', () => {
     createClient({
-      tip: 'persoana', nume: 'Maria', cui: null, nr_reg_com: null, cnp: null,
-      adresa: null, judet: null, oras: null, cod_postal: null, telefon: null, email: null, note: null
+      tip: 'persoana',
+      nume: 'Maria',
+      cui: null,
+      nr_reg_com: null,
+      cnp: null,
+      adresa: null,
+      judet: null,
+      oras: null,
+      cod_postal: null,
+      telefon: null,
+      email: null,
+      note: null
     })
     expect(() =>
       restaureazaBackup(tempDir(), paths(), join(testUserData(), 'pre-restaurare'), {

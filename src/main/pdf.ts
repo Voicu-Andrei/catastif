@@ -23,8 +23,18 @@ const esc = (s: string | null | undefined): string =>
   )
 
 const LUNI = [
-  'Ianuarie', 'Februarie', 'Martie', 'Aprilie', 'Mai', 'Iunie',
-  'Iulie', 'August', 'Septembrie', 'Octombrie', 'Noiembrie', 'Decembrie'
+  'Ianuarie',
+  'Februarie',
+  'Martie',
+  'Aprilie',
+  'Mai',
+  'Iunie',
+  'Iulie',
+  'August',
+  'Septembrie',
+  'Octombrie',
+  'Noiembrie',
+  'Decembrie'
 ]
 
 const STIL = `
@@ -143,7 +153,10 @@ function raportHtml(an: number): string {
     )
     .join('')
   const clienti = d.profit_pe_client
-    .map((c) => `<tr><td>${esc(c.client)}</td><td class="r">${lei(c.total)}</td><td class="r">${lei(c.profit)}</td></tr>`)
+    .map(
+      (c) =>
+        `<tr><td>${esc(c.client)}</td><td class="r">${lei(c.total)}</td><td class="r">${lei(c.profit)}</td></tr>`
+    )
     .join('')
   const furnizori = d.achizitii_pe_furnizor
     .map((f) => `<tr><td>${esc(f.furnizor)}</td><td class="r">${lei(f.total)}</td></tr>`)

@@ -25,7 +25,10 @@ export function GlobalSearch(): React.JSX.Element {
       return
     }
     const h = setTimeout(() => {
-      window.api.search.global(t).then(setResults).catch(() => setResults([]))
+      window.api.search
+        .global(t)
+        .then(setResults)
+        .catch(() => setResults([]))
     }, 180)
     return () => clearTimeout(h)
   }, [q])

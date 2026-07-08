@@ -55,8 +55,7 @@ const EMPTY: ProdusForm = {
 }
 
 const nullify = (s: string): string | null => (s.trim() !== '' ? s.trim() : null)
-const numOrNull = (v: number | string): number | null =>
-  v === '' || v === null ? null : Number(v)
+const numOrNull = (v: number | string): number | null => (v === '' || v === null ? null : Number(v))
 
 export function Produse(): React.JSX.Element {
   const { items, loading, error, reload } = useList<Produs>(window.api.produse.list)
@@ -154,7 +153,11 @@ export function Produse(): React.JSX.Element {
           await window.api.produse.delete(p.id)
           notifications.show({ color: 'gray', title: 'Șters', message: 'Produsul a fost șters.' })
         } catch (err) {
-          notifications.show({ color: 'red', title: 'Nu se poate șterge', message: mesajEroare(err) })
+          notifications.show({
+            color: 'red',
+            title: 'Nu se poate șterge',
+            message: mesajEroare(err)
+          })
         }
         reload()
       }
@@ -164,7 +167,12 @@ export function Produse(): React.JSX.Element {
   return (
     <>
       <PageHeader title="Produse" subtitle="Catalog folosit pentru a pre-completa comenzile" />
-      <ListToolbar search={search} onSearch={setSearch} onAdd={openCreate} addLabel="Adaugă produs" />
+      <ListToolbar
+        search={search}
+        onSearch={setSearch}
+        onAdd={openCreate}
+        addLabel="Adaugă produs"
+      />
 
       {error ? (
         <EroareIncarcare mesaj={error} onRetry={reload} />
@@ -226,7 +234,11 @@ export function Produse(): React.JSX.Element {
                       </Table.Td>
                       <Table.Td>
                         <Group gap={4} justify="flex-end" wrap="nowrap">
-                          <ActionIcon variant="subtle" onClick={() => openEdit(p)} aria-label="Editează">
+                          <ActionIcon
+                            variant="subtle"
+                            onClick={() => openEdit(p)}
+                            aria-label="Editează"
+                          >
                             <IconPencil size={18} />
                           </ActionIcon>
                           <ActionIcon
@@ -258,12 +270,7 @@ export function Produse(): React.JSX.Element {
         <form onSubmit={form.onSubmit(submit)}>
           <Stack gap="sm">
             <TextInput label="Nume" withAsterisk {...form.getInputProps('nume')} />
-            <Textarea
-              label="Descriere"
-              autosize
-              minRows={2}
-              {...form.getInputProps('descriere')}
-            />
+            <Textarea label="Descriere" autosize minRows={2} {...form.getInputProps('descriere')} />
             <Group grow>
               <TextInput label="Unitate de măsură" {...form.getInputProps('unitate_masura')} />
               <Select

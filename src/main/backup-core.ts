@@ -119,7 +119,8 @@ export function restaureazaBackup(
 
   const sursaAtt = join(backupFolder, 'atasamente')
   if (existsSync(sursaAtt)) {
-    if (existsSync(paths.attachmentsDir)) rmSync(paths.attachmentsDir, { recursive: true, force: true })
+    if (existsSync(paths.attachmentsDir))
+      rmSync(paths.attachmentsDir, { recursive: true, force: true })
     cpSync(sursaAtt, paths.attachmentsDir, { recursive: true })
   }
 }

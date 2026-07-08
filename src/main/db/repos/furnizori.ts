@@ -3,9 +3,7 @@ import { valideazaFurnizor } from '../validate'
 import type { Furnizor, FurnizorInput } from '@shared/types'
 
 export function listFurnizori(): Furnizor[] {
-  return getDb()
-    .prepare('SELECT * FROM furnizori ORDER BY nume COLLATE NOCASE')
-    .all() as Furnizor[]
+  return getDb().prepare('SELECT * FROM furnizori ORDER BY nume COLLATE NOCASE').all() as Furnizor[]
 }
 
 export function getFurnizor(id: number): Furnizor | undefined {

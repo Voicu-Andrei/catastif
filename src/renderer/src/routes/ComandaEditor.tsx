@@ -222,7 +222,11 @@ export function ComandaEditor(): React.JSX.Element {
     try {
       const c = await window.api.comenzi.accepta(comandaId!)
       incarcaComanda(c)
-      notifications.show({ color: 'teal', title: 'Acceptată', message: 'Oferta a devenit comandă.' })
+      notifications.show({
+        color: 'teal',
+        title: 'Acceptată',
+        message: 'Oferta a devenit comandă.'
+      })
     } catch (err) {
       notifications.show({ color: 'red', title: 'Eroare', message: mesajEroare(err) })
     }
@@ -242,7 +246,11 @@ export function ComandaEditor(): React.JSX.Element {
         try {
           const c = await window.api.comenzi.anuleaza(comandaId!)
           incarcaComanda(c)
-          notifications.show({ color: 'gray', title: 'Anulată', message: 'Comanda a fost anulată.' })
+          notifications.show({
+            color: 'gray',
+            title: 'Anulată',
+            message: 'Comanda a fost anulată.'
+          })
         } catch (err) {
           notifications.show({ color: 'red', title: 'Eroare', message: mesajEroare(err) })
         }
@@ -261,7 +269,11 @@ export function ComandaEditor(): React.JSX.Element {
           await window.api.comenzi.delete(comandaId!)
           navigate('/comenzi')
         } catch (err) {
-          notifications.show({ color: 'red', title: 'Nu se poate șterge', message: mesajEroare(err) })
+          notifications.show({
+            color: 'red',
+            title: 'Nu se poate șterge',
+            message: mesajEroare(err)
+          })
         }
       }
     })
@@ -274,7 +286,11 @@ export function ComandaEditor(): React.JSX.Element {
       const c = await window.api.comenzi.plata(comandaId!, leiToBani(suma))
       incarcaComanda(c)
       setPlataLei('')
-      notifications.show({ color: 'teal', title: 'Plată înregistrată', message: formatLei(leiToBani(suma)) })
+      notifications.show({
+        color: 'teal',
+        title: 'Plată înregistrată',
+        message: formatLei(leiToBani(suma))
+      })
     } catch (err) {
       notifications.show({ color: 'red', title: 'Eroare', message: mesajEroare(err) })
     }
@@ -294,7 +310,12 @@ export function ComandaEditor(): React.JSX.Element {
     <>
       <Group justify="space-between" mb="lg" wrap="nowrap">
         <Group gap="sm" wrap="nowrap">
-          <ActionIcon variant="subtle" size="lg" onClick={() => navigate('/comenzi')} aria-label="Înapoi">
+          <ActionIcon
+            variant="subtle"
+            size="lg"
+            onClick={() => navigate('/comenzi')}
+            aria-label="Înapoi"
+          >
             <IconArrowLeft />
           </ActionIcon>
           <div>
@@ -317,22 +338,41 @@ export function ComandaEditor(): React.JSX.Element {
         </Group>
         <Group gap="sm">
           {!esteNou && comanda?.stare === 'oferta' && (
-            <Button variant="light" color="teal" leftSection={<IconCheck size={18} />} onClick={accepta}>
+            <Button
+              variant="light"
+              color="teal"
+              leftSection={<IconCheck size={18} />}
+              onClick={accepta}
+            >
               Acceptă (devine comandă)
             </Button>
           )}
           {!esteNou && comanda?.stare === 'oferta' && (
-            <Button variant="subtle" color="red" leftSection={<IconTrash size={18} />} onClick={confirmaStergere}>
+            <Button
+              variant="subtle"
+              color="red"
+              leftSection={<IconTrash size={18} />}
+              onClick={confirmaStergere}
+            >
               Șterge
             </Button>
           )}
           {!esteNou && comanda?.stare === 'comanda' && (
-            <Button variant="subtle" color="red" leftSection={<IconBan size={18} />} onClick={confirmaAnulare}>
+            <Button
+              variant="subtle"
+              color="red"
+              leftSection={<IconBan size={18} />}
+              onClick={confirmaAnulare}
+            >
               Anulează
             </Button>
           )}
           {!esteNou && (
-            <Button variant="default" leftSection={<IconPrinter size={18} />} onClick={tiparestePdf}>
+            <Button
+              variant="default"
+              leftSection={<IconPrinter size={18} />}
+              onClick={tiparestePdf}
+            >
               PDF
             </Button>
           )}
@@ -358,11 +398,7 @@ export function ComandaEditor(): React.JSX.Element {
                 />
               </Grid.Col>
               <Grid.Col span={{ base: 12, sm: 4 }}>
-                <TextInput
-                  label="Număr"
-                  placeholder="automat"
-                  {...form.getInputProps('numar')}
-                />
+                <TextInput label="Număr" placeholder="automat" {...form.getInputProps('numar')} />
               </Grid.Col>
             </Grid>
           </Paper>
@@ -453,7 +489,9 @@ export function ComandaEditor(): React.JSX.Element {
                             data={TVA_DATA}
                             allowDeselect={false}
                             value={String(linii[idx].cota_tva)}
-                            onChange={(v) => form.setFieldValue(`linii.${idx}.cota_tva`, Number(v ?? 21))}
+                            onChange={(v) =>
+                              form.setFieldValue(`linii.${idx}.cota_tva`, Number(v ?? 21))
+                            }
                           />
                         </Table.Td>
                         <Table.Td ta="right">

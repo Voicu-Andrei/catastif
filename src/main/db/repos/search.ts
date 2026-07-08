@@ -20,7 +20,13 @@ export function searchGlobal(q: string): SearchResult[] {
        WHERE nume LIKE ? OR cui LIKE ? OR cnp LIKE ? ORDER BY nume LIMIT 6`
     )
     .all(like, like, like) as { id: number; nume: string; cod: string }[]) {
-    out.push({ tip: 'client', id: c.id, titlu: c.nume, subtitlu: c.cod || 'Client', link: '/clienti' })
+    out.push({
+      tip: 'client',
+      id: c.id,
+      titlu: c.nume,
+      subtitlu: c.cod || 'Client',
+      link: '/clienti'
+    })
   }
 
   for (const f of db

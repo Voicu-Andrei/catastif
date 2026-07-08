@@ -19,9 +19,7 @@ const SELECT = `
   FROM produse p`
 
 export function listProduse(): Produs[] {
-  const rows = getDb()
-    .prepare(`${SELECT} ORDER BY p.nume COLLATE NOCASE`)
-    .all() as RandProdus[]
+  const rows = getDb().prepare(`${SELECT} ORDER BY p.nume COLLATE NOCASE`).all() as RandProdus[]
   return rows.map((r) => map(r)!)
 }
 

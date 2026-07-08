@@ -23,7 +23,10 @@ export function Achizitii(): React.JSX.Element {
 
   return (
     <>
-      <PageHeader title="Achiziții" subtitle="Cumpărări de la furnizori — sursa istoricului de costuri" />
+      <PageHeader
+        title="Achiziții"
+        subtitle="Cumpărări de la furnizori — sursa istoricului de costuri"
+      />
       <ListToolbar
         search={search}
         onSearch={setSearch}
