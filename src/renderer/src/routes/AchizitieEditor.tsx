@@ -31,6 +31,7 @@ import {
 import type { AchizitieDetaliu, AchizitieInput, Furnizor, Produs } from '@shared/types'
 import { baniToLei, leiToBani } from '../lib/money'
 import { formatLei } from '../lib/format'
+import { mesajEroare } from '../lib/erori'
 import { FileAttachments } from '../components/FileAttachments'
 
 interface LinieForm {
@@ -174,7 +175,7 @@ export function AchizitieEditor(): React.JSX.Element {
       notifications.show({ color: 'teal', title: 'Salvat', message: 'Achiziția a fost salvată.' })
       navigate(`/achizitii/${saved.id}`)
     } catch (err) {
-      notifications.show({ color: 'red', title: 'Eroare', message: (err as Error).message })
+      notifications.show({ color: 'red', title: 'Eroare', message: mesajEroare(err) })
     }
   }
 
@@ -189,8 +190,12 @@ export function AchizitieEditor(): React.JSX.Element {
       labels: { confirm: 'Șterge', cancel: 'Renunță' },
       confirmProps: { color: 'red' },
       onConfirm: async () => {
-        await window.api.achizitii.delete(achizitieId!)
-        navigate('/achizitii')
+        try {
+          await window.api.achizitii.delete(achizitieId!)
+          navigate('/achizitii')
+        } catch (err) {
+          notifications.show({ color: 'red', title: 'Nu se poate șterge', message: mesajEroare(err) })
+        }
       }
     })
   }

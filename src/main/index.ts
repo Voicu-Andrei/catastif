@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell, Menu } from 'electron'
+import { app, BrowserWindow, shell, Menu, dialog } from 'electron'
 import { join } from 'path'
 import { getDb, closeDb } from './db/connection'
 import { getSetari } from './db/repos/setari'
@@ -8,6 +8,16 @@ import { initAutoUpdate } from './updater'
 
 let mainWindow: BrowserWindow | null = null
 let didShutdown = false
+
+// O eroare neprinsă în procesul principal nu trebuie să închidă aplicația brusc
+// (baza rămâne consistentă prin WAL, dar utilizatorul merită un mesaj clar).
+process.on('uncaughtException', (err) => {
+  console.error('Eroare neașteptată în procesul principal:', err)
+  dialog.showErrorBox(
+    'Catastif — eroare neașteptată',
+    'A apărut o eroare neașteptată. Datele tale sunt salvate pe disc.\n\n' + String(err?.message ?? err)
+  )
+})
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({

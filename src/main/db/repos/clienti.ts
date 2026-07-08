@@ -1,4 +1,5 @@
 import { getDb } from '../connection'
+import { valideazaClient } from '../validate'
 import type { Client, ClientInput } from '@shared/types'
 
 export function listClienti(): Client[] {
@@ -27,6 +28,7 @@ function bind(input: ClientInput): Record<string, unknown> {
 }
 
 export function createClient(input: ClientInput): Client {
+  valideazaClient(input)
   const info = getDb()
     .prepare(
       `INSERT INTO clienti (tip, nume, cui, nr_reg_com, cnp, adresa, judet, oras, cod_postal, telefon, email, note)
@@ -37,6 +39,7 @@ export function createClient(input: ClientInput): Client {
 }
 
 export function updateClient(id: number, input: ClientInput): Client {
+  valideazaClient(input)
   getDb()
     .prepare(
       `UPDATE clienti SET tip=@tip, nume=@nume, cui=@cui, nr_reg_com=@nr_reg_com, cnp=@cnp,
@@ -49,5 +52,12 @@ export function updateClient(id: number, input: ClientInput): Client {
 }
 
 export function deleteClient(id: number): void {
-  getDb().prepare('DELETE FROM clienti WHERE id = ?').run(id)
+  const db = getDb()
+  const r = db.prepare('SELECT COUNT(*) AS c FROM comenzi WHERE client_id = ?').get(id) as {
+    c: number
+  }
+  if (r.c > 0) {
+    throw new Error('Clientul are comenzi asociate și nu poate fi șters.')
+  }
+  db.prepare('DELETE FROM clienti WHERE id = ?').run(id)
 }

@@ -2,6 +2,7 @@ import type { Database } from 'better-sqlite3'
 import { getDb } from '../connection'
 import { ajusteazaStoc } from './stoc'
 import { calcComanda } from '@shared/calc'
+import { valideazaComanda, valideazaSumaPlata } from '../validate'
 import type {
   ComandaCuExtra,
   ComandaDetaliu,
@@ -78,6 +79,7 @@ const toCalc = (linii: LinieComandaInput[]): Parameters<typeof calcComanda>[0] =
   }))
 
 export function createComanda(input: ComandaInput): ComandaDetaliu {
+  valideazaComanda(input)
   const db = getDb()
   const t = calcComanda(toCalc(input.linii))
   const tx = db.transaction(() => {
@@ -108,6 +110,7 @@ export function createComanda(input: ComandaInput): ComandaDetaliu {
 }
 
 export function updateComanda(id: number, input: ComandaInput): ComandaDetaliu {
+  valideazaComanda(input)
   const db = getDb()
   const t = calcComanda(toCalc(input.linii))
   const tx = db.transaction(() => {
@@ -184,6 +187,7 @@ export function anuleazaComanda(id: number): ComandaDetaliu {
 
 // Adaugă o plată. Prima plată pe o ofertă o transformă automat în comandă.
 export function inregistreazaPlata(id: number, suma: number): ComandaDetaliu {
+  valideazaSumaPlata(suma)
   const db = getDb()
   const c = db.prepare('SELECT stare, achitat FROM comenzi WHERE id=?').get(id) as
     | { stare: StareComanda; achitat: number }

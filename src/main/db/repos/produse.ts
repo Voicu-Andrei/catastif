@@ -1,4 +1,5 @@
 import { getDb } from '../connection'
+import { valideazaProdus } from '../validate'
 import type { Produs, ProdusInput } from '@shared/types'
 
 interface RandProdus extends Omit<Produs, 'track_stock'> {
@@ -43,6 +44,7 @@ function bind(input: ProdusInput): Record<string, unknown> {
 }
 
 export function createProdus(input: ProdusInput): Produs {
+  valideazaProdus(input)
   const info = getDb()
     .prepare(
       `INSERT INTO produse (nume, descriere, unitate_masura, pret_referinta, cota_tva,
@@ -55,6 +57,7 @@ export function createProdus(input: ProdusInput): Produs {
 }
 
 export function updateProdus(id: number, input: ProdusInput): Produs {
+  valideazaProdus(input)
   getDb()
     .prepare(
       `UPDATE produse SET nume=@nume, descriere=@descriere, unitate_masura=@unitate_masura,

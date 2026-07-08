@@ -13,16 +13,19 @@ import './index.css'
 
 import { theme } from './theme'
 import { App } from './App'
+import { ErrorBoundary } from './components/ErrorBoundary'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <MantineProvider theme={theme} defaultColorScheme="light">
-      <ModalsProvider>
-        <Notifications position="top-right" />
-        <HashRouter>
-          <App />
-        </HashRouter>
-      </ModalsProvider>
+      <ErrorBoundary>
+        <ModalsProvider>
+          <Notifications position="top-right" />
+          <HashRouter>
+            <App />
+          </HashRouter>
+        </ModalsProvider>
+      </ErrorBoundary>
     </MantineProvider>
   </React.StrictMode>
 )

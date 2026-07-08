@@ -26,6 +26,7 @@ import {
 } from '@tabler/icons-react'
 import type { Setari as TSetari } from '@shared/types'
 import { PageHeader } from '../components/Placeholder'
+import { mesajEroare } from '../lib/erori'
 
 const INITIAL: TSetari = {
   nume_firma: '',
@@ -77,7 +78,7 @@ export function Setari(): React.JSX.Element {
       form.resetDirty(saved)
       notifications.show({ color: 'teal', title: 'Salvat', message: 'Setările au fost salvate.' })
     } catch (err) {
-      notifications.show({ color: 'red', title: 'Eroare', message: (err as Error).message })
+      notifications.show({ color: 'red', title: 'Eroare', message: mesajEroare(err) })
     } finally {
       setSaving(false)
     }

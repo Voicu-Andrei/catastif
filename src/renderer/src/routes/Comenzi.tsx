@@ -11,10 +11,11 @@ import {
 import { useNavigate } from 'react-router-dom'
 import { IconClipboardList } from '@tabler/icons-react'
 import type { ComandaCuExtra, StareComanda } from '@shared/types'
-import { PageHeader, ComingSoon } from '../components/Placeholder'
+import { PageHeader, ComingSoon, EroareIncarcare } from '../components/Placeholder'
 import { ListToolbar } from '../components/ListToolbar'
 import { formatLei, formatData } from '../lib/format'
 import { STARE_META } from '../lib/stare'
+import { mesajEroare } from '../lib/erori'
 
 type Filtru = 'toate' | StareComanda
 
@@ -23,13 +24,16 @@ export function Comenzi(): React.JSX.Element {
   const [filtru, setFiltru] = useState<Filtru>('toate')
   const [items, setItems] = useState<ComandaCuExtra[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
 
   const reload = useCallback(() => {
     setLoading(true)
+    setError(null)
     window.api.comenzi
       .list(filtru === 'toate' ? undefined : filtru)
       .then(setItems)
+      .catch((err) => setError(mesajEroare(err)))
       .finally(() => setLoading(false))
   }, [filtru])
 
@@ -67,7 +71,9 @@ export function Comenzi(): React.JSX.Element {
         addLabel="Adaugă ofertă"
       />
 
-      {!loading && items.length === 0 ? (
+      {error ? (
+        <EroareIncarcare mesaj={error} onRetry={reload} />
+      ) : !loading && items.length === 0 ? (
         <ComingSoon
           icon={<IconClipboardList size={34} />}
           title="Nicio comandă încă"

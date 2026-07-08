@@ -21,7 +21,8 @@ import {
 } from '@tabler/icons-react'
 import type { ReactNode } from 'react'
 import type { DashboardData } from '@shared/types'
-import { PageHeader } from '../components/Placeholder'
+import { PageHeader, EroareIncarcare } from '../components/Placeholder'
+import { mesajEroare } from '../lib/erori'
 import { formatLei, formatData } from '../lib/format'
 import { STARE_META } from '../lib/stare'
 
@@ -82,12 +83,25 @@ const TIP_ICON: Record<string, ReactNode> = {
 export function Dashboard(): React.JSX.Element {
   const navigate = useNavigate()
   const [data, setData] = useState<DashboardData | null>(null)
+  const [eroare, setEroare] = useState<string | null>(null)
 
   useEffect(() => {
-    window.api.dashboard.get().then(setData)
+    window.api.dashboard
+      .get()
+      .then(setData)
+      .catch((err) => setEroare(mesajEroare(err)))
   }, [])
 
   const d = data
+
+  if (eroare) {
+    return (
+      <>
+        <PageHeader title="Acasă" subtitle="Starea afacerii dintr-o privire" />
+        <EroareIncarcare mesaj={eroare} />
+      </>
+    )
+  }
 
   return (
     <>

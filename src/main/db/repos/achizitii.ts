@@ -1,6 +1,7 @@
 import type { Database } from 'better-sqlite3'
 import { getDb } from '../connection'
 import { ajusteazaStoc } from './stoc'
+import { valideazaAchizitie } from '../validate'
 import type {
   AchizitieCuExtra,
   AchizitieDetaliu,
@@ -70,6 +71,7 @@ function reverseStoc(db: Database, achizitieId: number): void {
 }
 
 export function createAchizitie(input: AchizitieInput): AchizitieDetaliu {
+  valideazaAchizitie(input)
   const db = getDb()
   const total = totalLinii(input.linii)
   const tx = db.transaction(() => {
@@ -93,6 +95,7 @@ export function createAchizitie(input: AchizitieInput): AchizitieDetaliu {
 }
 
 export function updateAchizitie(id: number, input: AchizitieInput): AchizitieDetaliu {
+  valideazaAchizitie(input)
   const db = getDb()
   const total = totalLinii(input.linii)
   const tx = db.transaction(() => {

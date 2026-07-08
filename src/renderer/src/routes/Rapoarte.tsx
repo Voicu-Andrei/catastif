@@ -3,7 +3,8 @@ import { Button, Group, Paper, ScrollArea, Select, SimpleGrid, Table, Text } fro
 import { BarChart } from '@mantine/charts'
 import { IconPrinter } from '@tabler/icons-react'
 import type { RaportData } from '@shared/types'
-import { PageHeader } from '../components/Placeholder'
+import { PageHeader, EroareIncarcare } from '../components/Placeholder'
+import { mesajEroare } from '../lib/erori'
 import { ExportButtons } from '../components/ExportButtons'
 import { formatLei } from '../lib/format'
 import { baniToLei } from '../lib/money'
@@ -13,9 +14,14 @@ const LUNI_SCURT = ['Ian', 'Feb', 'Mar', 'Apr', 'Mai', 'Iun', 'Iul', 'Aug', 'Sep
 export function Rapoarte(): React.JSX.Element {
   const [an, setAn] = useState<number>(new Date().getFullYear())
   const [data, setData] = useState<RaportData | null>(null)
+  const [eroare, setEroare] = useState<string | null>(null)
 
   useEffect(() => {
-    window.api.rapoarte.get(an).then(setData)
+    setEroare(null)
+    window.api.rapoarte
+      .get(an)
+      .then(setData)
+      .catch((err) => setEroare(mesajEroare(err)))
   }, [an])
 
   const chartData = (data?.vanzari_lunare ?? []).map((m, i) => ({

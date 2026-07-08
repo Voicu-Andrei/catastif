@@ -19,10 +19,11 @@ import { notifications } from '@mantine/notifications'
 import { modals } from '@mantine/modals'
 import { IconPencil, IconTrash, IconBuildingWarehouse } from '@tabler/icons-react'
 import type { Furnizor, FurnizorInput } from '@shared/types'
-import { PageHeader, ComingSoon } from '../components/Placeholder'
+import { PageHeader, ComingSoon, EroareIncarcare } from '../components/Placeholder'
 import { ListToolbar } from '../components/ListToolbar'
 import { FileAttachments } from '../components/FileAttachments'
 import { useList } from '../lib/useList'
+import { mesajEroare } from '../lib/erori'
 
 const EMPTY: FurnizorInput = {
   nume: '',
@@ -37,7 +38,7 @@ const EMPTY: FurnizorInput = {
 const nullify = (s: string | null): string | null => (s && s.trim() !== '' ? s.trim() : null)
 
 export function Furnizori(): React.JSX.Element {
-  const { items, loading, reload } = useList<Furnizor>(window.api.furnizori.list)
+  const { items, loading, error, reload } = useList<Furnizor>(window.api.furnizori.list)
   const [search, setSearch] = useState('')
   const [editing, setEditing] = useState<Furnizor | null>(null)
   const [opened, { open, close }] = useDisclosure(false)
@@ -94,7 +95,7 @@ export function Furnizori(): React.JSX.Element {
       close()
       reload()
     } catch (err) {
-      notifications.show({ color: 'red', title: 'Eroare', message: (err as Error).message })
+      notifications.show({ color: 'red', title: 'Eroare', message: mesajEroare(err) })
     }
   }
 
@@ -109,8 +110,12 @@ export function Furnizori(): React.JSX.Element {
       labels: { confirm: 'Șterge', cancel: 'Renunță' },
       confirmProps: { color: 'red' },
       onConfirm: async () => {
-        await window.api.furnizori.delete(f.id)
-        notifications.show({ color: 'gray', title: 'Șters', message: 'Furnizorul a fost șters.' })
+        try {
+          await window.api.furnizori.delete(f.id)
+          notifications.show({ color: 'gray', title: 'Șters', message: 'Furnizorul a fost șters.' })
+        } catch (err) {
+          notifications.show({ color: 'red', title: 'Nu se poate șterge', message: mesajEroare(err) })
+        }
         reload()
       }
     })
@@ -121,7 +126,9 @@ export function Furnizori(): React.JSX.Element {
       <PageHeader title="Furnizori" subtitle="Persoanele de la care cumpărați" />
       <ListToolbar search={search} onSearch={setSearch} onAdd={openCreate} addLabel="Adaugă furnizor" />
 
-      {!loading && items.length === 0 ? (
+      {error ? (
+        <EroareIncarcare mesaj={error} onRetry={reload} />
+      ) : !loading && items.length === 0 ? (
         <ComingSoon
           icon={<IconBuildingWarehouse size={34} />}
           title="Niciun furnizor încă"

@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ActionIcon, Button, Group, Paper, Stack, Text, ThemeIcon } from '@mantine/core'
 import { modals } from '@mantine/modals'
+import { notifications } from '@mantine/notifications'
 import { IconFile, IconPaperclip, IconTrash } from '@tabler/icons-react'
 import type { EntitateTip, Fisier } from '@shared/types'
 import { formatMarime } from '../lib/format'
+import { mesajEroare } from '../lib/erori'
 
 export function FileAttachments({
   entitateTip,
@@ -15,14 +17,23 @@ export function FileAttachments({
   const [fisiere, setFisiere] = useState<Fisier[]>([])
 
   const reload = useCallback(() => {
-    window.api.fisiere.list(entitateTip, entitateId).then(setFisiere)
+    window.api.fisiere
+      .list(entitateTip, entitateId)
+      .then(setFisiere)
+      .catch((err) =>
+        notifications.show({ color: 'red', title: 'Eroare', message: mesajEroare(err) })
+      )
   }, [entitateTip, entitateId])
 
   useEffect(() => reload(), [reload])
 
   async function adauga(): Promise<void> {
-    const lista = await window.api.fisiere.attach(entitateTip, entitateId)
-    setFisiere(lista)
+    try {
+      const lista = await window.api.fisiere.attach(entitateTip, entitateId)
+      setFisiere(lista)
+    } catch (err) {
+      notifications.show({ color: 'red', title: 'Eroare la atașare', message: mesajEroare(err) })
+    }
   }
 
   function sterge(f: Fisier): void {
@@ -36,7 +47,11 @@ export function FileAttachments({
       labels: { confirm: 'Șterge', cancel: 'Renunță' },
       confirmProps: { color: 'red' },
       onConfirm: async () => {
-        await window.api.fisiere.delete(f.id)
+        try {
+          await window.api.fisiere.delete(f.id)
+        } catch (err) {
+          notifications.show({ color: 'red', title: 'Eroare', message: mesajEroare(err) })
+        }
         reload()
       }
     })

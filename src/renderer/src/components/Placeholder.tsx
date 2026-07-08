@@ -1,4 +1,5 @@
-import { Center, Group, Paper, Stack, Text, ThemeIcon, Title } from '@mantine/core'
+import { Button, Center, Group, Paper, Stack, Text, ThemeIcon, Title } from '@mantine/core'
+import { IconAlertTriangle, IconRefresh } from '@tabler/icons-react'
 import type { ReactNode } from 'react'
 
 export function PageHeader({
@@ -24,6 +25,38 @@ export function PageHeader({
       </div>
       {action}
     </Group>
+  )
+}
+
+// Stare de eroare pentru liste/ecrane care nu s-au putut încărca.
+export function EroareIncarcare({
+  mesaj,
+  onRetry
+}: {
+  mesaj: string
+  onRetry?: () => void
+}): React.JSX.Element {
+  return (
+    <Paper withBorder radius="lg" p="xl">
+      <Center mih={220}>
+        <Stack align="center" gap="sm">
+          <ThemeIcon size={56} radius="xl" variant="light" color="red">
+            <IconAlertTriangle size={30} />
+          </ThemeIcon>
+          <Title order={4} ta="center">
+            Datele nu au putut fi încărcate
+          </Title>
+          <Text c="dimmed" ta="center" maw={440}>
+            {mesaj}
+          </Text>
+          {onRetry && (
+            <Button variant="light" leftSection={<IconRefresh size={16} />} onClick={onRetry}>
+              Reîncearcă
+            </Button>
+          )}
+        </Stack>
+      </Center>
+    </Paper>
   )
 }
 

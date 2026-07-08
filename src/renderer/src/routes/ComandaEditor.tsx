@@ -38,6 +38,7 @@ import { calcComanda, calcLinie } from '@shared/calc'
 import { baniToLei, leiToBani } from '../lib/money'
 import { formatLei } from '../lib/format'
 import { STARE_META } from '../lib/stare'
+import { mesajEroare } from '../lib/erori'
 import { FileAttachments } from '../components/FileAttachments'
 
 interface LinieForm {
@@ -213,14 +214,18 @@ export function ComandaEditor(): React.JSX.Element {
         notifications.show({ color: 'teal', title: 'Salvat', message: 'Comanda a fost salvată.' })
       }
     } catch (err) {
-      notifications.show({ color: 'red', title: 'Eroare', message: (err as Error).message })
+      notifications.show({ color: 'red', title: 'Eroare', message: mesajEroare(err) })
     }
   }
 
   async function accepta(): Promise<void> {
-    const c = await window.api.comenzi.accepta(comandaId!)
-    incarcaComanda(c)
-    notifications.show({ color: 'teal', title: 'Acceptată', message: 'Oferta a devenit comandă.' })
+    try {
+      const c = await window.api.comenzi.accepta(comandaId!)
+      incarcaComanda(c)
+      notifications.show({ color: 'teal', title: 'Acceptată', message: 'Oferta a devenit comandă.' })
+    } catch (err) {
+      notifications.show({ color: 'red', title: 'Eroare', message: mesajEroare(err) })
+    }
   }
 
   function confirmaAnulare(): void {
@@ -234,9 +239,13 @@ export function ComandaEditor(): React.JSX.Element {
       labels: { confirm: 'Anulează comanda', cancel: 'Renunță' },
       confirmProps: { color: 'red' },
       onConfirm: async () => {
-        const c = await window.api.comenzi.anuleaza(comandaId!)
-        incarcaComanda(c)
-        notifications.show({ color: 'gray', title: 'Anulată', message: 'Comanda a fost anulată.' })
+        try {
+          const c = await window.api.comenzi.anuleaza(comandaId!)
+          incarcaComanda(c)
+          notifications.show({ color: 'gray', title: 'Anulată', message: 'Comanda a fost anulată.' })
+        } catch (err) {
+          notifications.show({ color: 'red', title: 'Eroare', message: mesajEroare(err) })
+        }
       }
     })
   }
@@ -248,8 +257,12 @@ export function ComandaEditor(): React.JSX.Element {
       labels: { confirm: 'Șterge', cancel: 'Renunță' },
       confirmProps: { color: 'red' },
       onConfirm: async () => {
-        await window.api.comenzi.delete(comandaId!)
-        navigate('/comenzi')
+        try {
+          await window.api.comenzi.delete(comandaId!)
+          navigate('/comenzi')
+        } catch (err) {
+          notifications.show({ color: 'red', title: 'Nu se poate șterge', message: mesajEroare(err) })
+        }
       }
     })
   }
@@ -257,10 +270,14 @@ export function ComandaEditor(): React.JSX.Element {
   async function inregistreazaPlata(): Promise<void> {
     const suma = Number(plataLei || 0)
     if (suma <= 0) return
-    const c = await window.api.comenzi.plata(comandaId!, leiToBani(suma))
-    incarcaComanda(c)
-    setPlataLei('')
-    notifications.show({ color: 'teal', title: 'Plată înregistrată', message: formatLei(leiToBani(suma)) })
+    try {
+      const c = await window.api.comenzi.plata(comandaId!, leiToBani(suma))
+      incarcaComanda(c)
+      setPlataLei('')
+      notifications.show({ color: 'teal', title: 'Plată înregistrată', message: formatLei(leiToBani(suma)) })
+    } catch (err) {
+      notifications.show({ color: 'red', title: 'Eroare', message: mesajEroare(err) })
+    }
   }
 
   async function tiparestePdf(): Promise<void> {

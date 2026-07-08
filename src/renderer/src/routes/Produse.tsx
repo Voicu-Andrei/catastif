@@ -22,10 +22,11 @@ import { notifications } from '@mantine/notifications'
 import { modals } from '@mantine/modals'
 import { IconBox, IconPencil, IconTrash } from '@tabler/icons-react'
 import type { Furnizor, Produs, ProdusInput } from '@shared/types'
-import { PageHeader, ComingSoon } from '../components/Placeholder'
+import { PageHeader, ComingSoon, EroareIncarcare } from '../components/Placeholder'
 import { ListToolbar } from '../components/ListToolbar'
 import { FileAttachments } from '../components/FileAttachments'
 import { useList } from '../lib/useList'
+import { mesajEroare } from '../lib/erori'
 import { baniToLei, leiToBani } from '../lib/money'
 import { formatLei } from '../lib/format'
 
@@ -58,7 +59,7 @@ const numOrNull = (v: number | string): number | null =>
   v === '' || v === null ? null : Number(v)
 
 export function Produse(): React.JSX.Element {
-  const { items, loading, reload } = useList<Produs>(window.api.produse.list)
+  const { items, loading, error, reload } = useList<Produs>(window.api.produse.list)
   const [furnizori, setFurnizori] = useState<Furnizor[]>([])
   const [search, setSearch] = useState('')
   const [editing, setEditing] = useState<Produs | null>(null)
@@ -134,7 +135,7 @@ export function Produse(): React.JSX.Element {
       close()
       reload()
     } catch (err) {
-      notifications.show({ color: 'red', title: 'Eroare', message: (err as Error).message })
+      notifications.show({ color: 'red', title: 'Eroare', message: mesajEroare(err) })
     }
   }
 
@@ -149,8 +150,12 @@ export function Produse(): React.JSX.Element {
       labels: { confirm: 'Șterge', cancel: 'Renunță' },
       confirmProps: { color: 'red' },
       onConfirm: async () => {
-        await window.api.produse.delete(p.id)
-        notifications.show({ color: 'gray', title: 'Șters', message: 'Produsul a fost șters.' })
+        try {
+          await window.api.produse.delete(p.id)
+          notifications.show({ color: 'gray', title: 'Șters', message: 'Produsul a fost șters.' })
+        } catch (err) {
+          notifications.show({ color: 'red', title: 'Nu se poate șterge', message: mesajEroare(err) })
+        }
         reload()
       }
     })
@@ -161,7 +166,9 @@ export function Produse(): React.JSX.Element {
       <PageHeader title="Produse" subtitle="Catalog folosit pentru a pre-completa comenzile" />
       <ListToolbar search={search} onSearch={setSearch} onAdd={openCreate} addLabel="Adaugă produs" />
 
-      {!loading && items.length === 0 ? (
+      {error ? (
+        <EroareIncarcare mesaj={error} onRetry={reload} />
+      ) : !loading && items.length === 0 ? (
         <ComingSoon
           icon={<IconBox size={34} />}
           title="Niciun produs încă"

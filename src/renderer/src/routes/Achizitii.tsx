@@ -3,14 +3,14 @@ import { Paper, ScrollArea, Table, Text } from '@mantine/core'
 import { useNavigate } from 'react-router-dom'
 import { IconShoppingCart } from '@tabler/icons-react'
 import type { AchizitieCuExtra } from '@shared/types'
-import { PageHeader, ComingSoon } from '../components/Placeholder'
+import { PageHeader, ComingSoon, EroareIncarcare } from '../components/Placeholder'
 import { ListToolbar } from '../components/ListToolbar'
 import { useList } from '../lib/useList'
 import { formatLei, formatData } from '../lib/format'
 
 export function Achizitii(): React.JSX.Element {
   const navigate = useNavigate()
-  const { items, loading } = useList<AchizitieCuExtra>(window.api.achizitii.list)
+  const { items, loading, error, reload } = useList<AchizitieCuExtra>(window.api.achizitii.list)
   const [search, setSearch] = useState('')
 
   const filtered = useMemo(() => {
@@ -31,7 +31,9 @@ export function Achizitii(): React.JSX.Element {
         addLabel="Adaugă achiziție"
       />
 
-      {!loading && items.length === 0 ? (
+      {error ? (
+        <EroareIncarcare mesaj={error} onRetry={reload} />
+      ) : !loading && items.length === 0 ? (
         <ComingSoon
           icon={<IconShoppingCart size={34} />}
           title="Nicio achiziție încă"

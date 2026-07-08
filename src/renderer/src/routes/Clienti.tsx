@@ -20,10 +20,11 @@ import { notifications } from '@mantine/notifications'
 import { modals } from '@mantine/modals'
 import { IconPencil, IconTrash, IconUsers } from '@tabler/icons-react'
 import type { Client, ClientInput, TipClient } from '@shared/types'
-import { PageHeader, ComingSoon } from '../components/Placeholder'
+import { PageHeader, ComingSoon, EroareIncarcare } from '../components/Placeholder'
 import { ListToolbar } from '../components/ListToolbar'
 import { FileAttachments } from '../components/FileAttachments'
 import { useList } from '../lib/useList'
+import { mesajEroare } from '../lib/erori'
 
 const EMPTY: ClientInput = {
   tip: 'persoana',
@@ -43,7 +44,7 @@ const EMPTY: ClientInput = {
 const nullify = (s: string | null): string | null => (s && s.trim() !== '' ? s.trim() : null)
 
 export function Clienti(): React.JSX.Element {
-  const { items, loading, reload } = useList<Client>(window.api.clienti.list)
+  const { items, loading, error, reload } = useList<Client>(window.api.clienti.list)
   const [search, setSearch] = useState('')
   const [editing, setEditing] = useState<Client | null>(null)
   const [opened, { open, close }] = useDisclosure(false)
@@ -112,7 +113,7 @@ export function Clienti(): React.JSX.Element {
       close()
       reload()
     } catch (err) {
-      notifications.show({ color: 'red', title: 'Eroare', message: (err as Error).message })
+      notifications.show({ color: 'red', title: 'Eroare', message: mesajEroare(err) })
     }
   }
 
@@ -135,7 +136,7 @@ export function Clienti(): React.JSX.Element {
           notifications.show({
             color: 'red',
             title: 'Nu se poate șterge',
-            message: 'Clientul are comenzi asociate.'
+            message: mesajEroare(err)
           })
         }
       }
@@ -147,7 +148,9 @@ export function Clienti(): React.JSX.Element {
       <PageHeader title="Clienți" subtitle="Firme și persoane fizice" />
       <ListToolbar search={search} onSearch={setSearch} onAdd={openCreate} addLabel="Adaugă client" />
 
-      {!loading && items.length === 0 ? (
+      {error ? (
+        <EroareIncarcare mesaj={error} onRetry={reload} />
+      ) : !loading && items.length === 0 ? (
         <ComingSoon
           icon={<IconUsers size={34} />}
           title="Niciun client încă"

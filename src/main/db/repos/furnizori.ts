@@ -1,4 +1,5 @@
 import { getDb } from '../connection'
+import { valideazaFurnizor } from '../validate'
 import type { Furnizor, FurnizorInput } from '@shared/types'
 
 export function listFurnizori(): Furnizor[] {
@@ -24,6 +25,7 @@ function bind(input: FurnizorInput): Record<string, unknown> {
 }
 
 export function createFurnizor(input: FurnizorInput): Furnizor {
+  valideazaFurnizor(input)
   const info = getDb()
     .prepare(
       `INSERT INTO furnizori (nume, cui, nr_reg_com, adresa, telefon, email, note)
@@ -34,6 +36,7 @@ export function createFurnizor(input: FurnizorInput): Furnizor {
 }
 
 export function updateFurnizor(id: number, input: FurnizorInput): Furnizor {
+  valideazaFurnizor(input)
   getDb()
     .prepare(
       `UPDATE furnizori SET nume=@nume, cui=@cui, nr_reg_com=@nr_reg_com, adresa=@adresa,
@@ -45,5 +48,12 @@ export function updateFurnizor(id: number, input: FurnizorInput): Furnizor {
 }
 
 export function deleteFurnizor(id: number): void {
-  getDb().prepare('DELETE FROM furnizori WHERE id = ?').run(id)
+  const db = getDb()
+  const r = db.prepare('SELECT COUNT(*) AS c FROM achizitii WHERE furnizor_id = ?').get(id) as {
+    c: number
+  }
+  if (r.c > 0) {
+    throw new Error('Furnizorul are achiziții asociate și nu poate fi șters.')
+  }
+  db.prepare('DELETE FROM furnizori WHERE id = ?').run(id)
 }
