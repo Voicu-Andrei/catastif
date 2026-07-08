@@ -183,6 +183,21 @@ describe('plăți', () => {
     expect(() => inregistreazaPlata(c.id, 1000)).toThrow(/anulată/)
   })
 
+  it('fiecare plată apare în istoric, iar istoricul însumează achitatul', () => {
+    const c = createComanda({
+      numar: null,
+      client_id: null,
+      observatii: null,
+      linii: [linie(null, 1)]
+    })
+    inregistreazaPlata(c.id, 20000)
+    inregistreazaPlata(c.id, 15000)
+    const dupa = inregistreazaPlata(c.id, -5000)
+    expect(dupa.achitat).toBe(30000)
+    expect(dupa.plati.length).toBe(3)
+    expect(dupa.plati.reduce((s, p) => s + p.suma, 0)).toBe(dupa.achitat)
+  })
+
   it('o corecție negativă nu duce achitatul sub zero', () => {
     const c = createComanda({
       numar: null,

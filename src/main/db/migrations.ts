@@ -154,5 +154,34 @@ export const MIGRATIONS: Migration[] = [
       CREATE INDEX IF NOT EXISTS idx_linii_achizitie  ON linii_achizitie(achizitie_id);
       CREATE INDEX IF NOT EXISTS idx_fisiere_entitate ON fisiere(entitate_tip, entitate_id);
     `
+  },
+  {
+    version: 2,
+    nume: 'plati_si_indecsi',
+    sql: /* sql */ `
+      -- Istoric de plăți pe comandă. comenzi.achitat rămâne totalul denormalizat,
+      -- actualizat în aceeași tranzacție cu inserarea plății.
+      CREATE TABLE IF NOT EXISTS plati (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        comanda_id INTEGER NOT NULL REFERENCES comenzi(id) ON DELETE CASCADE,
+        suma       INTEGER NOT NULL,
+        data       TEXT NOT NULL DEFAULT (datetime('now')),
+        creat_la   TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+      CREATE INDEX IF NOT EXISTS idx_plati_comanda ON plati(comanda_id);
+
+      -- Datele existente: totalul achitat de până acum devine o singură plată
+      -- inițială, datată la acceptarea comenzii.
+      INSERT INTO plati (comanda_id, suma, data)
+        SELECT id, achitat, COALESCE(data_acceptare, creat_la)
+        FROM comenzi WHERE achitat > 0;
+
+      -- Indecși pentru interogările fierbinți:
+      -- ultimul cost de achiziție pe produs (lista de produse),
+      -- sortările după dată (liste, rapoarte pe an).
+      CREATE INDEX IF NOT EXISTS idx_linii_achizitie_produs ON linii_achizitie(produs_id, data);
+      CREATE INDEX IF NOT EXISTS idx_comenzi_data           ON comenzi(data_creare);
+      CREATE INDEX IF NOT EXISTS idx_achizitii_data         ON achizitii(data);
+    `
   }
 ]

@@ -36,7 +36,7 @@ import {
 import type { Client, ComandaDetaliu, ComandaInput, Produs } from '@shared/types'
 import { calcComanda, calcLinie } from '@shared/calc'
 import { baniToLei, leiToBani } from '../lib/money'
-import { formatLei } from '../lib/format'
+import { formatLei, formatData } from '../lib/format'
 import { STARE_META } from '../lib/stare'
 import { mesajEroare } from '../lib/erori'
 import { FileAttachments } from '../components/FileAttachments'
@@ -218,18 +218,30 @@ export function ComandaEditor(): React.JSX.Element {
     }
   }
 
-  async function accepta(): Promise<void> {
-    try {
-      const c = await window.api.comenzi.accepta(comandaId!)
-      incarcaComanda(c)
-      notifications.show({
-        color: 'teal',
-        title: 'Acceptată',
-        message: 'Oferta a devenit comandă.'
-      })
-    } catch (err) {
-      notifications.show({ color: 'red', title: 'Eroare', message: mesajEroare(err) })
-    }
+  function confirmaAcceptare(): void {
+    modals.openConfirmModal({
+      title: 'Acceptă oferta',
+      children: (
+        <Text size="sm">
+          Oferta devine <b>comandă</b>: stocul produselor urmărite scade, iar comanda nu mai poate
+          reveni la stadiul de ofertă (doar anulată). Continui?
+        </Text>
+      ),
+      labels: { confirm: 'Da, devine comandă', cancel: 'Renunță' },
+      onConfirm: async () => {
+        try {
+          const c = await window.api.comenzi.accepta(comandaId!)
+          incarcaComanda(c)
+          notifications.show({
+            color: 'teal',
+            title: 'Acceptată',
+            message: 'Oferta a devenit comandă.'
+          })
+        } catch (err) {
+          notifications.show({ color: 'red', title: 'Eroare', message: mesajEroare(err) })
+        }
+      }
+    })
   }
 
   function confirmaAnulare(): void {
@@ -282,6 +294,24 @@ export function ComandaEditor(): React.JSX.Element {
   async function inregistreazaPlata(): Promise<void> {
     const suma = Number(plataLei || 0)
     if (suma <= 0) return
+    if (comanda && leiToBani(suma) > comanda.rest_de_plata) {
+      modals.openConfirmModal({
+        title: 'Suma depășește restul de plată',
+        children: (
+          <Text size="sm">
+            Restul de plată este <b>{formatLei(comanda.rest_de_plata)}</b>, iar suma introdusă este{' '}
+            <b>{formatLei(leiToBani(suma))}</b>. Înregistrezi totuși plata?
+          </Text>
+        ),
+        labels: { confirm: 'Da, înregistrează', cancel: 'Renunță' },
+        onConfirm: () => void trimitePlata(suma)
+      })
+      return
+    }
+    await trimitePlata(suma)
+  }
+
+  async function trimitePlata(suma: number): Promise<void> {
     try {
       const c = await window.api.comenzi.plata(comandaId!, leiToBani(suma))
       incarcaComanda(c)
@@ -342,7 +372,7 @@ export function ComandaEditor(): React.JSX.Element {
               variant="light"
               color="teal"
               leftSection={<IconCheck size={18} />}
-              onClick={accepta}
+              onClick={confirmaAcceptare}
             >
               Acceptă (devine comandă)
             </Button>
@@ -589,10 +619,40 @@ export function ComandaEditor(): React.JSX.Element {
                       Adaugă
                     </Button>
                   </Group>
+                  {comanda.rest_de_plata > 0 && (
+                    <Button
+                      variant="subtle"
+                      size="compact-xs"
+                      style={{ alignSelf: 'flex-start' }}
+                      onClick={() => setPlataLei(baniToLei(comanda.rest_de_plata))}
+                    >
+                      Completează restul ({formatLei(comanda.rest_de_plata)})
+                    </Button>
+                  )}
                   {comanda.stare === 'oferta' && (
                     <Text size="xs" c="dimmed">
                       Prima plată transformă oferta în comandă.
                     </Text>
+                  )}
+                  {comanda.plati.length > 0 && (
+                    <>
+                      <Text size="sm" fw={600} mt="xs">
+                        Istoric plăți
+                      </Text>
+                      <Stack gap={2}>
+                        {comanda.plati.map((pl) => (
+                          <Group key={pl.id} justify="space-between" wrap="nowrap">
+                            <Text size="xs" c="dimmed">
+                              {formatData(pl.data)}
+                              {pl.suma < 0 ? ' (corecție)' : ''}
+                            </Text>
+                            <Text size="xs" c={pl.suma < 0 ? 'red.7' : undefined}>
+                              {formatLei(pl.suma)}
+                            </Text>
+                          </Group>
+                        ))}
+                      </Stack>
+                    </>
                   )}
                 </Stack>
               </>

@@ -48,6 +48,21 @@ describe('migrații', () => {
     )
   })
 
+  it('v2 transformă achitatul existent într-o plată inițială', () => {
+    db = new Database(':memory:')
+    // Aplică doar v1, inserează o comandă parțial plătită, apoi migrează la zi.
+    const v1 = MIGRATIONS.find((m) => m.version === 1)!
+    db.exec(v1.sql)
+    db.pragma('user_version = 1')
+    db.prepare(
+      "INSERT INTO comenzi (numar, stare, total, achitat) VALUES ('C0001', 'comanda', 10000, 4000)"
+    ).run()
+    runMigrations(db)
+    const plati = db.prepare('SELECT * FROM plati').all() as { comanda_id: number; suma: number }[]
+    expect(plati.length).toBe(1)
+    expect(plati[0].suma).toBe(4000)
+  })
+
   it('migrațiile pornesc de la versiunea curentă, nu de la zero (datele existente rămân)', () => {
     db = new Database(':memory:')
     runMigrations(db)

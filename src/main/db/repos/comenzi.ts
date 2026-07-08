@@ -9,6 +9,7 @@ import type {
   ComandaInput,
   LinieComanda,
   LinieComandaInput,
+  Plata,
   StareComanda
 } from '@shared/types'
 
@@ -45,7 +46,10 @@ export function getComanda(id: number): ComandaDetaliu | undefined {
   const linii = db
     .prepare('SELECT * FROM linii_comanda WHERE comanda_id = ? ORDER BY pozitie, id')
     .all(id) as LinieComanda[]
-  return { ...mapRand(c), linii }
+  const plati = db
+    .prepare('SELECT * FROM plati WHERE comanda_id = ? ORDER BY data DESC, id DESC')
+    .all(id) as Plata[]
+  return { ...mapRand(c), linii, plati }
 }
 
 function insertLinii(db: Database, comandaId: number, linii: LinieComandaInput[]): void {
@@ -194,8 +198,14 @@ export function inregistreazaPlata(id: number, suma: number): ComandaDetaliu {
     throw new Error('Nu se pot înregistra plăți pe o comandă anulată.')
   }
   const nouAchitat = Math.max(0, c.achitat + Math.round(suma))
+  // Delta efectiv aplicat (corecțiile negative nu pot coborî sub zero),
+  // ca istoricul din `plati` să însumeze mereu exact `achitat`.
+  const delta = nouAchitat - c.achitat
   const devineComanda = c.stare === 'oferta' && nouAchitat > 0
   const tx = db.transaction(() => {
+    if (delta !== 0) {
+      db.prepare('INSERT INTO plati (comanda_id, suma) VALUES (?, ?)').run(id, delta)
+    }
     db.prepare(
       `UPDATE comenzi SET achitat=@achitat,
          stare = CASE WHEN @devine = 1 THEN 'comanda' ELSE stare END,

@@ -122,8 +122,17 @@ export interface ComandaCuExtra extends Comanda {
   profit: number // bani
 }
 
+export interface Plata {
+  id: number
+  comanda_id: number
+  suma: number // bani (negativ = corecție)
+  data: string
+  creat_la: string
+}
+
 export interface ComandaDetaliu extends ComandaCuExtra {
   linii: LinieComanda[]
+  plati: Plata[]
 }
 
 // Date pentru creare/actualizare comandă (starea și plățile se gestionează separat).
