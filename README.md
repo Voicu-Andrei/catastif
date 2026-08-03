@@ -39,6 +39,14 @@ substituent („în curând”). Aplicația **nu** gestionează niciodată datel
 > SmartScreen („Mai multe informații → Executați oricum”). Actualizarea automată funcționează pe
 > Windows; pe macOS necesită semnare (de adăugat ulterior).
 
+## Documentație
+
+- [`docs/SPECIFICATIE.md`](docs/SPECIFICATIE.md) — ce face aplicația și cum se leagă părțile între
+  ele: modelul de date, ciclul de viață al comenzii, efectele pe stoc, formulele, suprafața API și
+  lipsurile cunoscute. Scrisă pentru cineva care reconstruiește ideile pe altă platformă.
+- [`docs/INSTALARE.md`](docs/INSTALARE.md) — instalare și actualizare pe Windows.
+- [`docs/blueprint.md`](docs/blueprint.md) — planul inițial al produsului.
+
 ## Tehnologii
 
 - **Electron** (proces principal + preload + renderer izolat, `contextIsolation`)
