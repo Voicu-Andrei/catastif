@@ -20,7 +20,8 @@
     "postinstall": "electron-builder install-app-deps",
     "pack:dir": "npm run build && electron-builder --dir",
     "dist": "npm run build && electron-builder",
-    "downloads": "node scripts/downloads.mjs"
+    "downloads": "node scripts/downloads.mjs",
+    "iconita": "node scripts/genereaza-iconita.mjs"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",
