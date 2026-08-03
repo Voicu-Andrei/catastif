@@ -278,10 +278,18 @@ export interface RaportData {
 
 export type ExportFormat = 'csv' | 'xlsx'
 
-export interface RezultatActualizare {
-  disponibila: boolean
-  versiune?: string
-}
+// Starea fluxului de actualizare, trimisă din main către interfață. Interfața
+// nu ține minte nimic: la montare cere starea curentă (`update.state()`), apoi
+// ascultă schimbările. Așa un renderer care pornește mai încet decât prima
+// verificare nu pierde anunțul.
+export type StareActualizare =
+  | { faza: 'inactiv' }
+  | { faza: 'verificare' }
+  | { faza: 'disponibila'; versiune: string }
+  | { faza: 'descarcare'; versiune: string; procent: number }
+  | { faza: 'descarcata'; versiune: string }
+  | { faza: 'la_zi' }
+  | { faza: 'eroare'; mesaj: string }
 
 // ---------------------------------------------------------------------------
 // Suprafața API expusă în renderer prin preload (window.api)
@@ -367,7 +375,16 @@ export interface CatastifApi {
     raport(an: number): Promise<BackupResult>
   }
   update: {
-    onAvailable(cb: (info: { version: string }) => void): () => void
+    // Starea curentă, cerută la montarea interfeței (nu pierde anunțuri timpurii).
+    state(): Promise<StareActualizare>
+    onState(cb: (stare: StareActualizare) => void): () => void
+    // Verificare pornită manual din Setări.
+    check(): Promise<void>
+    // Răspunsul la „Actualizare disponibilă”: descarcă / mai târziu / sari peste.
     respond(raspuns: 'da' | 'nu' | 'skip'): Promise<void>
+    // După ce descărcarea s-a terminat: repornește acum sau la următoarea închidere.
+    install(cand: 'acum' | 'la_inchidere'): Promise<void>
+    // Anulează un „Nu pentru această versiune” dat din greșeală.
+    clearSkipped(): Promise<void>
   }
 }

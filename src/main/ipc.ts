@@ -95,10 +95,16 @@ export function registerIpc(): void {
         return { ok: false, mesaj: 'Restaurare anulată.' }
       }
       restoreFromSync(res.filePaths[0])
-      // Repornim pentru a reîncărca baza restaurată.
-      app.relaunch()
-      app.exit(0)
-      return { ok: true }
+      // Repornim pentru a reîncărca baza restaurată. `app.quit()`, nu
+      // `app.exit()`: exit sare peste `will-quit`, deci peste închiderea curată
+      // a bazei, iar procesul nou ar putea găsi fișierul încă blocat.
+      // Repornirea o programăm după ce răspunsul ajunge în interfață, altfel
+      // promisiunea nu se rezolvă niciodată și utilizatorul nu află nimic.
+      setTimeout(() => {
+        app.relaunch({ args: process.argv.slice(1) })
+        app.quit()
+      }, 400)
+      return { ok: true, mesaj: 'Datele au fost restaurate. Aplicația se repornește…' }
     } catch (err) {
       return { ok: false, mesaj: (err as Error).message }
     }
@@ -106,6 +112,13 @@ export function registerIpc(): void {
 
   ipcMain.handle('backup:openFolder', async (): Promise<void> => {
     const s = getSetari()
-    if (s.backup_folder) await shell.openPath(s.backup_folder)
+    if (!s.backup_folder) return
+    // shell.openPath întoarce un mesaj de eroare în loc să respingă promisiunea.
+    const eroare = await shell.openPath(s.backup_folder)
+    if (eroare) {
+      throw new Error(
+        `Folderul de backup nu poate fi deschis. Verifică dacă mai există (stick scos, folder mutat sau OneDrive deconectat).\n${eroare}`
+      )
+    }
   })
 }

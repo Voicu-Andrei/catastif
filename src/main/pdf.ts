@@ -6,6 +6,8 @@ import { getClient } from './db/repos/clienti'
 import { getSetari } from './db/repos/setari'
 import { getRapoarte } from './db/repos/rapoarte'
 import { calcLinie } from '@shared/calc'
+import { numeFisierSigur } from './nume-fisier'
+import { jurnal } from './log'
 import type { BackupResult, ComandaDetaliu, Client, Setari } from '@shared/types'
 
 const lei = (b: number): string =>
@@ -223,12 +225,17 @@ async function htmlToPdf(
       margins: { top: 0.5, bottom: 0.5, left: 0.5, right: 0.5 }
     })
     const res = await dialog.showSaveDialog(win!, {
-      defaultPath: `${defaultName}.pdf`,
+      // Numerele de comandă românești conțin des „/” („F 145/2026”), pe care
+      // Windows îl citește ca separator de folder.
+      defaultPath: `${numeFisierSigur(defaultName, 'document')}.pdf`,
       filters: [{ name: 'PDF', extensions: ['pdf'] }]
     })
     if (res.canceled || !res.filePath) return { ok: false, mesaj: 'Export anulat.' }
     writeFileSync(res.filePath, data)
-    shell.openPath(res.filePath)
+    const eroareDeschidere = await shell.openPath(res.filePath)
+    if (eroareDeschidere) {
+      jurnal.warn(`PDF salvat, dar nu s-a putut deschide: ${eroareDeschidere}`)
+    }
     return { ok: true, cale: res.filePath }
   } catch (err) {
     return { ok: false, mesaj: (err as Error).message }

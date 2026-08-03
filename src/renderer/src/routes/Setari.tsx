@@ -22,9 +22,10 @@ import {
   IconDownload,
   IconFolder,
   IconFolderOpen,
+  IconRefresh,
   IconRestore
 } from '@tabler/icons-react'
-import type { Setari as TSetari } from '@shared/types'
+import type { Setari as TSetari, StareActualizare } from '@shared/types'
 import { PageHeader } from '../components/Placeholder'
 import { mesajEroare } from '../lib/erori'
 import { TVA_SELECT_DATA } from '../lib/tva'
@@ -51,10 +52,39 @@ const INITIAL: TSetari = {
   versiune_ignorata: null
 }
 
+// Cum arată fiecare fază a actualizării în Setări. Fereastra modală se ocupă de
+// pașii în care utilizatorul trebuie să decidă ceva; aici arătăm doar starea.
+function textStareActualizare(s: StareActualizare): string {
+  switch (s.faza) {
+    case 'verificare':
+      return 'Se verifică…'
+    case 'disponibila':
+      return `Versiunea ${s.versiune} este disponibilă.`
+    case 'descarcare':
+      return `Se descarcă versiunea ${s.versiune}… ${s.procent}%`
+    case 'descarcata':
+      return `Versiunea ${s.versiune} este gata de instalare.`
+    case 'la_zi':
+      return 'Folosești cea mai recentă versiune.'
+    case 'eroare':
+      return s.mesaj
+    default:
+      return ''
+  }
+}
+
 export function Setari(): React.JSX.Element {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [versiune, setVersiune] = useState('')
+  const [stareActualizare, setStareActualizare] = useState<StareActualizare>({ faza: 'inactiv' })
   const form = useForm<TSetari>({ initialValues: INITIAL })
+
+  useEffect(() => {
+    window.api.app.getVersion().then(setVersiune)
+    window.api.update.state().then(setStareActualizare)
+    return window.api.update.onState(setStareActualizare)
+  }, [])
 
   useEffect(() => {
     window.api.setari
@@ -259,6 +289,56 @@ export function Setari(): React.JSX.Element {
               Restaurează din backup
             </Button>
           </Group>
+        </Paper>
+
+        {/* Actualizări */}
+        <Paper withBorder radius="lg" p="lg">
+          <Title order={4} mb="xs">
+            Actualizări
+          </Title>
+          <Text size="sm" c="dimmed" mb="md">
+            Aplicația verifică singură dacă a apărut o versiune nouă. Actualizarea nu îți atinge
+            datele: produsele, comenzile și atașamentele rămân exact unde sunt.
+          </Text>
+
+          <Group align="flex-end" gap="sm" mb={stareActualizare.faza === 'inactiv' ? 0 : 'sm'}>
+            <TextInput
+              label="Versiunea instalată"
+              readOnly
+              value={versiune ? `Catastif ${versiune}` : '…'}
+              w={220}
+            />
+            <Button
+              variant="default"
+              leftSection={<IconRefresh size={18} />}
+              onClick={() => window.api.update.check()}
+              loading={stareActualizare.faza === 'verificare'}
+            >
+              Verifică acum
+            </Button>
+            {form.values.versiune_ignorata && (
+              <Button
+                variant="subtle"
+                onClick={async () => {
+                  await window.api.update.clearSkipped()
+                  form.setFieldValue('versiune_ignorata', null)
+                  notifications.show({
+                    color: 'teal',
+                    title: 'Gata',
+                    message: 'Vei fi anunțat din nou pentru orice versiune nouă.'
+                  })
+                }}
+              >
+                Nu mai ignora versiunea {form.values.versiune_ignorata}
+              </Button>
+            )}
+          </Group>
+
+          {stareActualizare.faza !== 'inactiv' && (
+            <Text size="sm" c={stareActualizare.faza === 'eroare' ? 'red.7' : 'dimmed'}>
+              {textStareActualizare(stareActualizare)}
+            </Text>
+          )}
         </Paper>
       </Stack>
     </form>

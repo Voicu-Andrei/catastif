@@ -24,8 +24,13 @@ win:
 
 nsis:
   oneClick: false
+  # Instalare pe utilizator: actualizările nu cer drepturi de administrator.
   perMachine: false
   allowToChangeInstallationDirectory: true
+  # Datele utilizatorului (baza SQLite, atașamentele, setările) stau în
+  # %APPDATA%\catastif, în afara folderului de instalare. `false` aici este ce
+  # garantează că o actualizare — care înseamnă dezinstalare + instalare — nu le
+  # atinge. Nu schimba în `true`: ar șterge toată evidența firmei la update.
   deleteAppDataOnUninstall: false
 
 mac:
@@ -40,7 +45,15 @@ linux:
   category: Office
 
 # Update feed: GitHub Releases (public repo). electron-updater reads this.
+#
+# `releaseType: release` NU este opțional. Implicit, electron-builder publică un
+# release în stare de ciornă (electron-publish/gitHubPublisher: `options.draft
+# === false ? "release" : "draft"`), iar ciornele nu apar nici în /releases/latest,
+# nici în releases.atom — exact sursele din care electron-updater află că există
+# o versiune nouă. Cu ciornă, actualizarea automată nu pornește niciodată, în
+# tăcere, oricât de corect ar fi restul.
 publish:
   provider: github
-  owner: voicu-andrei
+  owner: Voicu-Andrei
   repo: catastif
+  releaseType: release

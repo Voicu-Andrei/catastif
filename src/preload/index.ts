@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { CatastifApi } from '@shared/types'
+import type { CatastifApi, StareActualizare } from '@shared/types'
 
 const api: CatastifApi = {
   app: {
@@ -77,12 +77,16 @@ const api: CatastifApi = {
     raport: (an) => ipcRenderer.invoke('pdf:raport', an)
   },
   update: {
-    onAvailable: (cb) => {
-      const listener = (_e: unknown, data: { version: string }): void => cb(data)
-      ipcRenderer.on('update:available', listener)
-      return () => ipcRenderer.removeListener('update:available', listener)
+    state: () => ipcRenderer.invoke('update:getStare'),
+    onState: (cb) => {
+      const listener = (_e: unknown, stare: StareActualizare): void => cb(stare)
+      ipcRenderer.on('update:stare', listener)
+      return () => ipcRenderer.removeListener('update:stare', listener)
     },
-    respond: (raspuns) => ipcRenderer.invoke('update:response', raspuns)
+    check: () => ipcRenderer.invoke('update:check'),
+    respond: (raspuns) => ipcRenderer.invoke('update:response', raspuns),
+    install: (cand) => ipcRenderer.invoke('update:install', cand),
+    clearSkipped: () => ipcRenderer.invoke('update:clearSkipped')
   }
 }
 

@@ -2,7 +2,16 @@
 // testată direct pe fișiere temporare. `backup.ts` o leagă la căile aplicației.
 
 import { join, dirname } from 'path'
-import { existsSync, mkdirSync, cpSync, readdirSync, statSync, rmSync, copyFileSync } from 'fs'
+import {
+  existsSync,
+  mkdirSync,
+  cpSync,
+  readdirSync,
+  statSync,
+  rmSync,
+  copyFileSync,
+  renameSync
+} from 'fs'
 import Database from 'better-sqlite3'
 
 export const BACKUP_PREFIX = 'catastif-backup-'
@@ -61,12 +70,39 @@ export interface BackupPaths {
 }
 
 // Creează un folder de backup datat: baza (snapshot consistent) + atașamentele.
+//
+// Scriem întâi într-un folder de lucru al cărui nume NU începe cu BACKUP_PREFIX,
+// și abia la final îi dăm numele definitiv. Altfel un backup întrerupt (aplicația
+// închisă forțat, stick scos, OneDrive nesincronizat) rămâne pe disc arătând ca
+// un backup bun: `rotesteFolder` l-ar număra printre cele 10 păstrate și ar
+// șterge, în locul lui, un backup vechi dar valid.
 export function creeazaBackup(db: Database.Database, paths: BackupPaths, folder: string): string {
-  const dest = join(folder, `${BACKUP_PREFIX}${timestamp()}`)
-  mkdirSync(dest, { recursive: true })
-  snapshotDb(db, join(dest, 'catastif.db'))
-  if (existsSync(paths.attachmentsDir)) {
-    cpSync(paths.attachmentsDir, join(dest, 'atasamente'), { recursive: true })
+  // Două backupuri pornite în aceeași secundă (clic dublu pe „Creează backup
+  // acum”, sau unul manual peste cel automat) ar ținti același folder: al
+  // doilea ar suprascrie baza, dar ar contopi atașamentele, lăsând în backup
+  // fișiere deja șterse din aplicație.
+  let sufix = timestamp()
+  for (let i = 2; existsSync(join(folder, `${BACKUP_PREFIX}${sufix}`)); i++) {
+    sufix = `${timestamp()}-${i}`
+  }
+  const dest = join(folder, `${BACKUP_PREFIX}${sufix}`)
+  // Numele de lucru nu trebuie să înceapă cu BACKUP_PREFIX, altfel `rotesteFolder`
+  // l-ar confunda cu un backup terminat.
+  const lucru = join(folder, `in-lucru-${sufix}`)
+
+  rmSync(lucru, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
+  mkdirSync(lucru, { recursive: true })
+  try {
+    snapshotDb(db, join(lucru, 'catastif.db'))
+    if (existsSync(paths.attachmentsDir)) {
+      cpSync(paths.attachmentsDir, join(lucru, 'atasamente'), { recursive: true })
+    }
+    // Redenumirea eșuează dacă destinația a apărut între timp — preferăm o
+    // eroare vizibilă în locul ștergerii tăcute a unui backup existent.
+    renameSync(lucru, dest)
+  } catch (err) {
+    rmSync(lucru, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
+    throw err
   }
   return dest
 }
@@ -113,14 +149,54 @@ export function restaureazaBackup(
   }
 
   hooks.closeDb()
+
+  // Copiem lângă baza curentă (deci pe același volum, unde redenumirea este
+  // atomică) și abia apoi înlocuim. Dacă discul se umple, stickul e scos sau
+  // antivirusul blochează fișierul la jumătatea copierii, baza curentă rămâne
+  // exact cum era — varianta veche scria direct peste ea și o pierdea.
+  const temporar = `${paths.dbPath}.nou`
+  try {
+    rmSync(temporar, { force: true })
+    copyFileSync(sursaDb, temporar)
+    renameSync(temporar, paths.dbPath)
+  } catch (err) {
+    rmSync(temporar, { force: true })
+    throw new Error(
+      `Restaurarea nu a putut fi finalizată, iar datele curente au rămas neatinse. (${
+        (err as Error).message
+      })`,
+      { cause: err }
+    )
+  }
+
+  // Abia după ce baza a fost înlocuită cu succes scăpăm de jurnalul vechi:
+  // altfel SQLite l-ar rejuca peste baza restaurată și ar corupe-o.
   rmSync(`${paths.dbPath}-wal`, { force: true })
   rmSync(`${paths.dbPath}-shm`, { force: true })
-  copyFileSync(sursaDb, paths.dbPath)
 
   const sursaAtt = join(backupFolder, 'atasamente')
   if (existsSync(sursaAtt)) {
-    if (existsSync(paths.attachmentsDir))
-      rmSync(paths.attachmentsDir, { recursive: true, force: true })
-    cpSync(sursaAtt, paths.attachmentsDir, { recursive: true })
+    // Aceeași grijă pentru atașamente: construim noul folder complet, apoi
+    // schimbăm locurile, ca o copiere eșuată să nu lase utilizatorul fără ele.
+    const nou = `${paths.attachmentsDir}.nou`
+    const vechi = `${paths.attachmentsDir}.vechi`
+    rmSync(nou, { recursive: true, force: true })
+    rmSync(vechi, { recursive: true, force: true })
+    try {
+      cpSync(sursaAtt, nou, { recursive: true })
+      if (existsSync(paths.attachmentsDir)) renameSync(paths.attachmentsDir, vechi)
+      renameSync(nou, paths.attachmentsDir)
+      rmSync(vechi, { recursive: true, force: true })
+    } catch (err) {
+      rmSync(nou, { recursive: true, force: true })
+      // Dacă am apucat să mutăm originalul deoparte, îl punem la loc.
+      if (!existsSync(paths.attachmentsDir) && existsSync(vechi)) {
+        renameSync(vechi, paths.attachmentsDir)
+      }
+      throw new Error(
+        `Baza de date a fost restaurată, dar atașamentele nu. (${(err as Error).message})`,
+        { cause: err }
+      )
+    }
   }
 }

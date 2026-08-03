@@ -1,38 +1,111 @@
 import { useEffect, useState } from 'react'
-import { Button, Group, Modal, Stack, Text } from '@mantine/core'
+import { Button, Group, Modal, Progress, Stack, Text } from '@mantine/core'
+import type { StareActualizare } from '@shared/types'
 
+// Fereastra de actualizare urmărește starea din procesul principal, în loc să
+// țină minte singură ce s-a întâmplat. Așa, o interfață care pornește mai încet
+// decât prima verificare nu pierde anunțul: la montare cere starea curentă.
 export function UpdateNotifier(): React.JSX.Element {
-  const [version, setVersion] = useState<string | null>(null)
+  const [stare, setStare] = useState<StareActualizare>({ faza: 'inactiv' })
 
-  useEffect(() => window.api.update.onAvailable(({ version }) => setVersion(version)), [])
+  useEffect(() => {
+    let activ = true
+    window.api.update.state().then((s) => {
+      if (activ) setStare(s)
+    })
+    const dezabonare = window.api.update.onState(setStare)
+    return () => {
+      activ = false
+      dezabonare()
+    }
+  }, [])
 
-  function respond(r: 'da' | 'nu' | 'skip'): void {
-    window.api.update.respond(r)
-    setVersion(null)
+  function inchide(): void {
+    setStare({ faza: 'inactiv' })
   }
+
+  // Verificările de rutină și starea „la zi” nu merită o fereastră modală —
+  // ele apar doar în Setări, unde utilizatorul le-a cerut explicit.
+  const vizibil =
+    stare.faza === 'disponibila' || stare.faza === 'descarcare' || stare.faza === 'descarcata'
 
   return (
     <Modal
-      opened={version !== null}
-      onClose={() => respond('nu')}
+      opened={vizibil}
+      onClose={() => {
+        if (stare.faza === 'disponibila') window.api.update.respond('nu')
+        inchide()
+      }}
       title="Actualizare disponibilă"
       centered
+      // În timpul descărcării nu are rost să poată fi închisă din greșeală.
+      closeOnClickOutside={stare.faza !== 'descarcare'}
+      withCloseButton={stare.faza !== 'descarcare'}
     >
-      <Stack>
-        <Text>
-          O versiune nouă{version ? ` (${version})` : ''} a aplicației Catastif este disponibilă.
-          Vrei să actualizezi acum?
-        </Text>
-        <Group justify="flex-end" gap="xs">
-          <Button variant="subtle" color="gray" onClick={() => respond('skip')}>
-            Nu pentru această versiune
-          </Button>
-          <Button variant="default" onClick={() => respond('nu')}>
-            Nu
-          </Button>
-          <Button onClick={() => respond('da')}>Da, actualizează</Button>
-        </Group>
-      </Stack>
+      {stare.faza === 'disponibila' && (
+        <Stack>
+          <Text>
+            O versiune nouă ({stare.versiune}) a aplicației Catastif este disponibilă. Datele tale
+            rămân neatinse — actualizarea schimbă doar aplicația.
+          </Text>
+          <Group justify="flex-end" gap="xs">
+            <Button
+              variant="subtle"
+              color="gray"
+              onClick={() => {
+                window.api.update.respond('skip')
+                inchide()
+              }}
+            >
+              Nu pentru această versiune
+            </Button>
+            <Button
+              variant="default"
+              onClick={() => {
+                window.api.update.respond('nu')
+                inchide()
+              }}
+            >
+              Mai târziu
+            </Button>
+            <Button onClick={() => window.api.update.respond('da')}>Da, actualizează</Button>
+          </Group>
+        </Stack>
+      )}
+
+      {stare.faza === 'descarcare' && (
+        <Stack>
+          <Text>Se descarcă versiunea {stare.versiune}…</Text>
+          <Progress value={stare.procent} animated />
+          <Text size="sm" c="dimmed">
+            {stare.procent}% — poți continua să lucrezi. Te anunțăm când e gata.
+          </Text>
+        </Stack>
+      )}
+
+      {stare.faza === 'descarcata' && (
+        <Stack>
+          <Text>
+            Versiunea {stare.versiune} este descărcată și gata de instalare. Aplicația se va
+            reporni.
+          </Text>
+          <Text size="sm" c="dimmed">
+            Dacă ai ceva nesalvat, alege „La următoarea închidere” și salvează întâi.
+          </Text>
+          <Group justify="flex-end" gap="xs">
+            <Button
+              variant="default"
+              onClick={() => {
+                window.api.update.install('la_inchidere')
+                inchide()
+              }}
+            >
+              La următoarea închidere
+            </Button>
+            <Button onClick={() => window.api.update.install('acum')}>Repornește acum</Button>
+          </Group>
+        </Stack>
+      )}
     </Modal>
   )
 }

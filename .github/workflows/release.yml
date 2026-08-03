@@ -12,9 +12,51 @@ permissions:
   contents: write
 
 jobs:
+  # electron-builder derivă tagul release-ului din `version` din package.json, NU
+  # din tagul împins. Dacă cele două diferă, artefactele ajung pe alt tag decât
+  # cel care a pornit build-ul, iar aplicațiile instalate nu văd niciodată
+  # actualizarea. Verificăm o singură dată, înainte de orice build.
+  verifica:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalează dependențele
+        run: npm ci
+
+      - name: Tagul trebuie să corespundă versiunii din package.json
+        shell: bash
+        run: |
+          versiune="v$(node -p "require('./package.json').version")"
+          if [ "$versiune" != "$GITHUB_REF_NAME" ]; then
+            echo "Tagul împins ($GITHUB_REF_NAME) nu corespunde versiunii din package.json ($versiune)."
+            echo "Actualizează 'version' în package.json, apoi refă tagul."
+            exit 1
+          fi
+          echo "Versiune confirmată: $versiune"
+
+      - name: Verifică tipurile
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Rulează testele
+        run: npm test
+
   release:
+    needs: verifica
     strategy:
       fail-fast: false
+      # Rulăm secvențial: ambele sisteme publică pe același tag, iar dacă pornesc
+      # în paralel fiecare poate crea propriul release pentru acel tag, lăsând
+      # instalatorul Windows și latest.yml pe unul, iar macOS pe celălalt.
+      max-parallel: 1
       matrix:
         os: [windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
