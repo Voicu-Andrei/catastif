@@ -15,6 +15,8 @@ import type { InfoActualizare, StareActualizare } from '@shared/types'
 //    pornește mai încet decât prima verificare nu pierde anunțul.
 
 const INTERVAL_REVERIFICARE = 6 * 60 * 60 * 1000 // 6 ore
+const INTERVAL_SUPRAVEGHERE = 60 * 1000 // 1 minut
+const RABDARE_DESCARCARE = 10 * 60 * 1000 // 10 minute fără niciun progres
 
 let stare: StareActualizare = { faza: 'inactiv' }
 // Versiunea aflată în lucru (pentru eticheta de progres) și cea chiar ajunsă pe
@@ -25,6 +27,8 @@ let versiuneDescarcata: string | null = null
 let instalareInCurs = false
 let cronometru: NodeJS.Timeout | null = null
 let anulareDescarcare: CancellationToken | null = null
+let supraveghere: NodeJS.Timeout | null = null
+let ultimulProgres = 0
 
 // `before-quit` trebuie să sară peste backupul sincron când instalatorul NSIS
 // este deja pornit și așteaptă să închidă aplicația — altfel copierea e tăiată
@@ -89,6 +93,7 @@ function conecteazaEvenimente(): void {
   autoUpdater.on('update-not-available', () => setStare({ faza: 'la_zi' }))
 
   autoUpdater.on('download-progress', (p) => {
+    ultimulProgres = Date.now()
     setStare({
       faza: 'descarcare',
       versiune: versiuneInLucru ?? '',
@@ -151,6 +156,7 @@ export function registerUpdateIpc(): void {
       // trebuie să poată fi oprită. Altfel fereastra rămâne pe ecran cu bara
       // înțepenită și nicio verificare ulterioară nu mai pornește.
       anulareDescarcare = new CancellationToken()
+      ultimulProgres = Date.now()
       setStare({ faza: 'descarcare', versiune: versiuneInLucru ?? '', procent: 0 })
       try {
         await autoUpdater.downloadUpdate(anulareDescarcare)
@@ -244,11 +250,31 @@ export function initAutoUpdate(): void {
     }
   }, INTERVAL_REVERIFICARE)
   cronometru.unref()
+
+  // O descărcare care se oprește în tăcere (proxy care ține conexiunea
+  // deschisă, filtru de firmă) nu produce nici „terminat”, nici „eroare”. Fără
+  // supravegherea asta, faza „descarcare” ar rămâne definitivă: bara înghețată
+  // pe ecran și niciun fel de verificare până la repornirea aplicației.
+  supraveghere = setInterval(() => {
+    if (stare.faza !== 'descarcare') return
+    if (Date.now() - ultimulProgres < RABDARE_DESCARCARE) return
+    jurnal.warn('Descărcarea nu a mai avansat de 10 minute — o opresc.')
+    anulareDescarcare?.cancel()
+    setStare({
+      faza: 'eroare',
+      mesaj: 'Descărcarea s-a oprit. Verifică legătura la internet și încearcă din nou.'
+    })
+  }, INTERVAL_SUPRAVEGHERE)
+  supraveghere.unref()
 }
 
 export function opresteAutoUpdate(): void {
   if (cronometru) {
     clearInterval(cronometru)
     cronometru = null
+  }
+  if (supraveghere) {
+    clearInterval(supraveghere)
+    supraveghere = null
   }
 }
