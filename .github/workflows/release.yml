@@ -1,12 +1,18 @@
 name: Release
 
-# Construiește instalatoarele și le publică pe pagina Releases la fiecare tag „v*”.
-# Exemplu: git tag v0.1.0 && git push origin v0.1.0
+# Construiește instalatoarele și le publică pe pagina Releases.
+#
+# Două căi de pornire:
+#  - un tag „v*” împins (calea obișnuită): git tag v0.1.0 && git push origin v0.1.0
+#  - pornire manuală din fila Actions („Run workflow”), utilă când tagul nu poate
+#    fi împins. electron-builder creează oricum release-ul și tagul din `version`
+#    din package.json, deci rezultatul este identic.
 
 on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -29,7 +35,10 @@ jobs:
       - name: Instalează dependențele
         run: npm ci
 
+      # Doar la pornirea prin tag: la pornirea manuală nu există tag de comparat,
+      # iar tagul release-ului îl scrie electron-builder din package.json.
       - name: Tagul trebuie să corespundă versiunii din package.json
+        if: github.ref_type == 'tag'
         shell: bash
         run: |
           versiune="v$(node -p "require('./package.json').version")"
