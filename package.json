@@ -13,7 +13,7 @@
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json --composite false",
     "typecheck": "npm run typecheck:node && npm run typecheck:web",
     "rebuild:node": "npm rebuild better-sqlite3",
-    "rebuild:electron": "electron-builder install-app-deps",
+    "rebuild:electron": "electron-rebuild -f -o better-sqlite3",
     "predev": "npm run rebuild:electron",
     "prestart": "npm run rebuild:electron",
     "pretest": "npm run rebuild:node",
@@ -34,6 +34,7 @@
     "exceljs": "^4.4.0"
   },
   "devDependencies": {
+    "@electron/rebuild": "^4.0.4",
     "@eslint/js": "^10.0.1",
     "@mantine/charts": "^9.4.0",
     "@mantine/core": "^9.4.0",

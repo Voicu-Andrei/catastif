@@ -21,16 +21,23 @@ let didShutdown = false
 // iar un backup la închidere ar prinde datele la mijlocul unei scrieri. Pe
 // Windows se întâmplă des — aplicația pornește cu fereastra ascunsă, omul crede
 // că nu s-a întâmplat nimic și mai dă o dată clic pe scurtătură.
-if (!app.requestSingleInstanceLock()) {
-  app.exit(0)
-}
+// Nu ne bazăm pe faptul că `app.exit()` oprește pe loc restul modulului: tot ce
+// urmează (inclusiv deschiderea bazei) stă într-un `else`, ca a doua instanță să
+// nu apuce să atingă nimic, indiferent de ordinea internă a Electron.
+const suntemSinguraInstanta = app.requestSingleInstanceLock()
 
-app.on('second-instance', () => {
-  if (!mainWindow || mainWindow.isDestroyed()) return
-  if (mainWindow.isMinimized()) mainWindow.restore()
-  mainWindow.show()
-  mainWindow.focus()
-})
+if (!suntemSinguraInstanta) {
+  app.exit(0)
+} else {
+  app.on('second-instance', () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return
+    if (mainWindow.isMinimized()) mainWindow.restore()
+    mainWindow.show()
+    mainWindow.focus()
+  })
+
+  porneste()
+}
 
 function inchideCuEroare(titlu: string, mesaj: string, err: unknown): never {
   jurnal.error(`${titlu}:`, err)
@@ -198,38 +205,40 @@ function configureazaMeniu(): void {
   )
 }
 
-app.whenReady().then(() => {
-  // Fără asta, Windows nu leagă fereastra de scurtătura fixată în bara de
-  // activități: apar două pictograme, iar notificările nu au identitate.
-  // Trebuie să fie exact `appId` din electron-builder.yml.
-  if (process.platform === 'win32') app.setAppUserModelId('ro.catastif.app')
+function porneste(): void {
+  app.whenReady().then(() => {
+    // Fără asta, Windows nu leagă fereastra de scurtătura fixată în bara de
+    // activități: apar două pictograme, iar notificările nu au identitate.
+    // Trebuie să fie exact `appId` din electron-builder.yml.
+    if (process.platform === 'win32') app.setAppUserModelId('ro.catastif.app')
 
-  jurnal.info(`Catastif ${app.getVersion()} pornește (${process.platform}).`)
+    jurnal.info(`Catastif ${app.getVersion()} pornește (${process.platform}).`)
 
-  configureazaMeniu()
-  // Canalele de actualizare se înregistrează înaintea bazei: chiar dacă baza nu
-  // poate fi deschisă, interfața trebuie să poată cere starea fără să crape.
-  registerUpdateIpc()
+    configureazaMeniu()
+    // Canalele de actualizare se înregistrează înaintea bazei: chiar dacă baza
+    // nu poate fi deschisă, interfața trebuie să poată cere starea fără să crape.
+    registerUpdateIpc()
 
-  try {
-    // Inițializează baza + rulează migrațiile devreme.
-    getDb()
-  } catch (err) {
-    inchideCuEroare(
-      'Catastif — baza de date nu poate fi deschisă',
-      String(err instanceof Error ? err.message : err),
-      err
-    )
-  }
+    try {
+      // Inițializează baza + rulează migrațiile devreme.
+      getDb()
+    } catch (err) {
+      inchideCuEroare(
+        'Catastif — baza de date nu poate fi deschisă',
+        String(err instanceof Error ? err.message : err),
+        err
+      )
+    }
 
-  registerIpc()
-  createWindow()
-  initAutoUpdate()
+    registerIpc()
+    createWindow()
+    initAutoUpdate()
 
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    })
   })
-})
+}
 
 // Backup automat la închidere (dacă e activat) + închidere curată a bazei.
 //
