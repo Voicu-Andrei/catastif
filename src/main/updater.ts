@@ -2,7 +2,7 @@ import { app, ipcMain, BrowserWindow } from 'electron'
 import { autoUpdater } from 'electron-updater'
 import { getSetari, saveSetari } from './db/repos/setari'
 import { jurnal } from './log'
-import type { StareActualizare } from '@shared/types'
+import type { InfoActualizare, StareActualizare } from '@shared/types'
 
 // Verificarea la pornire + fluxul cu 3 opțiuni (Da / Nu / Nu pentru această versiune).
 //
@@ -17,6 +17,10 @@ import type { StareActualizare } from '@shared/types'
 const INTERVAL_REVERIFICARE = 6 * 60 * 60 * 1000 // 6 ore
 
 let stare: StareActualizare = { faza: 'inactiv' }
+// Versiunea aflată în lucru (pentru eticheta de progres) și cea chiar ajunsă pe
+// disc sunt lucruri diferite: prima e cunoscută înainte de descărcare, a doua
+// dovedește că există un instalator de rulat.
+let versiuneInLucru: string | null = null
 let versiuneDescarcata: string | null = null
 let instalareInCurs = false
 let cronometru: NodeJS.Timeout | null = null
@@ -28,10 +32,25 @@ export function instalareActualizareInCurs(): boolean {
   return instalareInCurs
 }
 
+// Interfața primește întotdeauna tabloul complet, nu doar faza: altfel ar
+// trebui să deducă din formulare ce versiune e ignorată sau descărcată, iar
+// procesul principal le poate schimba pe la spatele ei.
+function info(): InfoActualizare {
+  let versiuneIgnorata: string | null = null
+  try {
+    versiuneIgnorata = getSetari().versiune_ignorata
+  } catch {
+    // Baza poate fi indisponibilă (pornire eșuată, închidere în curs); starea
+    // actualizării trebuie să rămână utilizabilă oricum.
+  }
+  return { stare, versiuneIgnorata, versiuneDescarcata }
+}
+
 function setStare(nou: StareActualizare): void {
   stare = nou
+  const payload = info()
   for (const w of BrowserWindow.getAllWindows()) {
-    if (!w.isDestroyed()) w.webContents.send('update:stare', nou)
+    if (!w.isDestroyed()) w.webContents.send('update:stare', payload)
   }
 }
 
@@ -54,8 +73,8 @@ function mesajEroare(err: unknown): string {
 function conecteazaEvenimente(): void {
   autoUpdater.on('checking-for-update', () => setStare({ faza: 'verificare' }))
 
-  autoUpdater.on('update-available', (info) => {
-    const versiune = info.version
+  autoUpdater.on('update-available', (detalii) => {
+    const versiune = detalii.version
     // O versiune pusă deoparte de utilizator nu mai deranjează, dar una mai nouă
     // decât ea da — comparăm pe egalitate, deci orice altă versiune trece.
     if (getSetari().versiune_ignorata === versiune) {
@@ -71,16 +90,16 @@ function conecteazaEvenimente(): void {
   autoUpdater.on('download-progress', (p) => {
     setStare({
       faza: 'descarcare',
-      versiune: versiuneDescarcata ?? '',
+      versiune: versiuneInLucru ?? '',
       procent: Math.round(p.percent)
     })
   })
 
-  autoUpdater.on('update-downloaded', (info) => {
-    versiuneDescarcata = info.version
+  autoUpdater.on('update-downloaded', (detalii) => {
+    versiuneDescarcata = detalii.version
     // NU instalăm de la sine: utilizatorul poate fi în mijlocul unei comenzi.
     // Îl întrebăm și așteptăm `update:install`.
-    setStare({ faza: 'descarcata', versiune: info.version })
+    setStare({ faza: 'descarcata', versiune: detalii.version })
   })
 
   autoUpdater.on('error', (err) => {
@@ -98,7 +117,7 @@ function conecteazaEvenimente(): void {
 // promisiuni respinse („No handler registered for …”).
 export function registerUpdateIpc(): void {
   // `update:getStare` este cererea (invoke), `update:stare` este anunțul (send).
-  ipcMain.handle('update:getStare', (): StareActualizare => stare)
+  ipcMain.handle('update:getStare', (): InfoActualizare => info())
 
   ipcMain.handle('update:check', async (): Promise<void> => {
     if (!app.isPackaged) {
@@ -125,8 +144,9 @@ export function registerUpdateIpc(): void {
 
   ipcMain.handle('update:response', async (_e, raspuns: 'da' | 'nu' | 'skip'): Promise<void> => {
     if (raspuns === 'da') {
-      if (stare.faza === 'disponibila') versiuneDescarcata = stare.versiune
-      setStare({ faza: 'descarcare', versiune: versiuneDescarcata ?? '', procent: 0 })
+      if (stare.faza === 'disponibila') versiuneInLucru = stare.versiune
+      versiuneDescarcata = null
+      setStare({ faza: 'descarcare', versiune: versiuneInLucru ?? '', procent: 0 })
       try {
         await autoUpdater.downloadUpdate()
       } catch (err) {
@@ -149,9 +169,11 @@ export function registerUpdateIpc(): void {
   })
 
   ipcMain.handle('update:install', (_e, cand: 'acum' | 'la_inchidere'): void => {
-    // Garda se pune pe stare, nu pe `versiuneDescarcata`: aceasta e completată
-    // încă de la începutul descărcării, deci nu dovedește că există ceva pe disc.
-    if (stare.faza !== 'descarcata') return
+    // `versiuneDescarcata` se completează DOAR în `update-downloaded`, deci
+    // faptul că e ne-nulă chiar dovedește că există un instalator pe disc.
+    // Nu ne putem lega de fază: fereastra o consumă închizându-se, iar butonul
+    // din Setări trebuie să funcționeze și după aceea.
+    if (versiuneDescarcata === null) return
     if (cand === 'la_inchidere') {
       // Nu e nimic de pornit aici: `autoInstallOnAppQuit` e deja `true` de la
       // inițializare (vezi initAutoUpdate), iar electron-updater instalează
@@ -171,6 +193,8 @@ export function registerUpdateIpc(): void {
   ipcMain.handle('update:clearSkipped', (): void => {
     saveSetari({ versiune_ignorata: null })
     jurnal.info('Lista versiunilor ignorate a fost golită.')
+    // Retrimitem tabloul, ca butonul „Nu mai ignora…” să dispară de la sine.
+    setStare(stare)
   })
 }
 

@@ -1,27 +1,37 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Button, Group, Modal, Progress, Stack, Text } from '@mantine/core'
-import type { StareActualizare } from '@shared/types'
+import type { InfoActualizare } from '@shared/types'
+
+const INITIAL: InfoActualizare = {
+  stare: { faza: 'inactiv' },
+  versiuneIgnorata: null,
+  versiuneDescarcata: null
+}
 
 // Fereastra de actualizare urmărește starea din procesul principal, în loc să
 // țină minte singură ce s-a întâmplat. Așa, o interfață care pornește mai încet
 // decât prima verificare nu pierde anunțul: la montare cere starea curentă.
 export function UpdateNotifier(): React.JSX.Element {
-  const [stare, setStare] = useState<StareActualizare>({ faza: 'inactiv' })
+  const [info, setInfo] = useState<InfoActualizare>(INITIAL)
+  const primitPush = useRef(false)
 
   useEffect(() => {
-    let activ = true
-    window.api.update.state().then((s) => {
-      if (activ) setStare(s)
+    // Abonarea vine prima: dacă între cerere și răspuns sosește un anunț mai
+    // nou, instantaneul întârziat nu are voie să-l dea înapoi.
+    const dezabonare = window.api.update.onState((i) => {
+      primitPush.current = true
+      setInfo(i)
     })
-    const dezabonare = window.api.update.onState(setStare)
-    return () => {
-      activ = false
-      dezabonare()
-    }
+    window.api.update.state().then((i) => {
+      if (!primitPush.current) setInfo(i)
+    })
+    return dezabonare
   }, [])
 
+  const stare = info.stare
+
   function inchide(): void {
-    setStare({ faza: 'inactiv' })
+    setInfo((precedent) => ({ ...precedent, stare: { faza: 'inactiv' } }))
   }
 
   // Verificările de rutină și starea „la zi” nu merită o fereastră modală —
@@ -29,24 +39,28 @@ export function UpdateNotifier(): React.JSX.Element {
   const vizibil =
     stare.faza === 'disponibila' || stare.faza === 'descarcare' || stare.faza === 'descarcata'
 
+  const inDescarcare = stare.faza === 'descarcare'
+
   return (
     <Modal
       opened={vizibil}
       onClose={() => {
         if (stare.faza === 'disponibila') window.api.update.respond('nu')
-        // Închiderea ferestrei cu Esc sau clic în afară nu trebuie să lase
-        // procesul principal blocat pe „descarcata” (starea din care nicio
-        // verificare nu mai pornește) în timp ce interfața crede că s-a
-        // terminat. O tratăm ca pe alegerea „la următoarea închidere”, ceea ce
-        // și este: actualizarea descărcată se instalează oricum la închidere.
+        // Închiderea ferestrei nu trebuie să lase procesul principal blocat pe
+        // „descarcata” — starea din care nicio verificare nu mai pornește — în
+        // timp ce interfața crede că s-a terminat. O tratăm ca pe alegerea „la
+        // următoarea închidere”, ceea ce și este: actualizarea descărcată se
+        // instalează oricum la închidere, iar butonul din Setări rămâne acolo.
         if (stare.faza === 'descarcata') window.api.update.install('la_inchidere')
         inchide()
       }}
       title="Actualizare disponibilă"
       centered
-      // În timpul descărcării nu are rost să poată fi închisă din greșeală.
-      closeOnClickOutside={stare.faza !== 'descarcare'}
-      withCloseButton={stare.faza !== 'descarcare'}
+      // În timpul descărcării nu are rost să poată fi închisă din greșeală —
+      // inclusiv cu Escape, altfel s-ar redeschide la următorul pas de progres.
+      closeOnClickOutside={!inDescarcare}
+      closeOnEscape={!inDescarcare}
+      withCloseButton={!inDescarcare}
     >
       {stare.faza === 'disponibila' && (
         <Stack>

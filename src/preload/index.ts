@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { CatastifApi, StareActualizare } from '@shared/types'
+import type { CatastifApi, InfoActualizare } from '@shared/types'
 
 const api: CatastifApi = {
   app: {
@@ -79,7 +79,7 @@ const api: CatastifApi = {
   update: {
     state: () => ipcRenderer.invoke('update:getStare'),
     onState: (cb) => {
-      const listener = (_e: unknown, stare: StareActualizare): void => cb(stare)
+      const listener = (_e: unknown, info: InfoActualizare): void => cb(info)
       ipcRenderer.on('update:stare', listener)
       return () => ipcRenderer.removeListener('update:stare', listener)
     },

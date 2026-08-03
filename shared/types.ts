@@ -291,6 +291,16 @@ export type StareActualizare =
   | { faza: 'la_zi' }
   | { faza: 'eroare'; mesaj: string }
 
+// Faza este trecătoare (fereastra o „consumă” închizându-se), dar două fapte
+// trebuie să rămână vizibile în Setări oricât de mult după: ce versiune a fost
+// pusă deoparte și dacă există una descărcată, gata de instalat. Amândouă sunt
+// ținute în procesul principal — interfața nu le mai ghicește din formular.
+export interface InfoActualizare {
+  stare: StareActualizare
+  versiuneIgnorata: string | null
+  versiuneDescarcata: string | null
+}
+
 // ---------------------------------------------------------------------------
 // Suprafața API expusă în renderer prin preload (window.api)
 // Crește pe parcursul etapelor de dezvoltare.
@@ -376,8 +386,8 @@ export interface CatastifApi {
   }
   update: {
     // Starea curentă, cerută la montarea interfeței (nu pierde anunțuri timpurii).
-    state(): Promise<StareActualizare>
-    onState(cb: (stare: StareActualizare) => void): () => void
+    state(): Promise<InfoActualizare>
+    onState(cb: (info: InfoActualizare) => void): () => void
     // Verificare pornită manual din Setări.
     check(): Promise<void>
     // Răspunsul la „Actualizare disponibilă”: descarcă / mai târziu / sari peste.

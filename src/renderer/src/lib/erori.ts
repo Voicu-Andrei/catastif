@@ -6,7 +6,16 @@
 const PREFIX_IPC = /^Error invoking remote method '[^']+':\s*(?:\w*Error:\s*)?/
 
 export function mesajEroare(err: unknown): string {
-  const brut = err instanceof Error ? err.message : String(err)
+  // O promisiune respinsă fără motiv (`Promise.reject()`) ar produce, prin
+  // `String()`, textul „undefined” — afișat ca atare într-o interfață în română.
+  const brut =
+    err instanceof Error
+      ? err.message
+      : typeof err === 'string'
+        ? err
+        : err == null
+          ? ''
+          : String(err)
   const msg = brut.replace(PREFIX_IPC, '').trim()
   if (msg.includes('FOREIGN KEY constraint failed')) {
     return 'Înregistrarea este folosită de alte date și nu poate fi modificată sau ștearsă.'

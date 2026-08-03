@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   Button,
   Divider,
@@ -25,7 +25,7 @@ import {
   IconRefresh,
   IconRestore
 } from '@tabler/icons-react'
-import type { Setari as TSetari, StareActualizare } from '@shared/types'
+import type { Setari as TSetari, InfoActualizare, StareActualizare } from '@shared/types'
 import { PageHeader } from '../components/Placeholder'
 import { mesajEroare } from '../lib/erori'
 import { TVA_SELECT_DATA } from '../lib/tva'
@@ -77,13 +77,26 @@ export function Setari(): React.JSX.Element {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [versiune, setVersiune] = useState('')
-  const [stareActualizare, setStareActualizare] = useState<StareActualizare>({ faza: 'inactiv' })
+  const [infoActualizare, setInfoActualizare] = useState<InfoActualizare>({
+    stare: { faza: 'inactiv' },
+    versiuneIgnorata: null,
+    versiuneDescarcata: null
+  })
+  const primitPush = useRef(false)
   const form = useForm<TSetari>({ initialValues: INITIAL })
 
   useEffect(() => {
     window.api.app.getVersion().then(setVersiune)
-    window.api.update.state().then(setStareActualizare)
-    return window.api.update.onState(setStareActualizare)
+    // Abonarea înaintea cererii: un instantaneu întârziat nu are voie să dea
+    // înapoi o stare mai nouă sosită între timp (butonul ar rămâne blocat).
+    const dezabonare = window.api.update.onState((i) => {
+      primitPush.current = true
+      setInfoActualizare(i)
+    })
+    window.api.update.state().then((i) => {
+      if (!primitPush.current) setInfoActualizare(i)
+    })
+    return dezabonare
   }, [])
 
   useEffect(() => {
@@ -114,6 +127,10 @@ export function Setari(): React.JSX.Element {
       delete payload.versiune_ignorata
       const saved = await window.api.setari.save(payload)
       invalidateSetari()
+      // Reîncărcăm din răspuns, nu doar refacem instantaneul: `versiune_ignorata`
+      // a fost scos din payload, deci valoarea din formular poate fi mai veche
+      // decât cea din baza de date, iar formularul ar rămâne „murdar” pe veci.
+      form.setValues(saved)
       form.resetDirty(saved)
       notifications.show({ color: 'teal', title: 'Salvat', message: 'Setările au fost salvate.' })
     } catch (err) {
@@ -316,7 +333,7 @@ export function Setari(): React.JSX.Element {
             datele: produsele, comenzile și atașamentele rămân exact unde sunt.
           </Text>
 
-          <Group align="flex-end" gap="sm" mb={stareActualizare.faza === 'inactiv' ? 0 : 'sm'}>
+          <Group align="flex-end" gap="sm" mb={infoActualizare.stare.faza === 'inactiv' ? 0 : 'sm'}>
             <TextInput
               label="Versiunea instalată"
               readOnly
@@ -327,21 +344,20 @@ export function Setari(): React.JSX.Element {
               variant="default"
               leftSection={<IconRefresh size={18} />}
               onClick={() => window.api.update.check()}
-              loading={stareActualizare.faza === 'verificare'}
+              loading={infoActualizare.stare.faza === 'verificare'}
             >
               Verifică acum
             </Button>
-            {stareActualizare.faza === 'descarcata' && (
+            {infoActualizare.versiuneDescarcata !== null && (
               <Button onClick={() => window.api.update.install('acum')}>
                 Repornește și instalează
               </Button>
             )}
-            {form.values.versiune_ignorata && (
+            {infoActualizare.versiuneIgnorata && (
               <Button
                 variant="subtle"
                 onClick={async () => {
                   await window.api.update.clearSkipped()
-                  form.setFieldValue('versiune_ignorata', null)
                   notifications.show({
                     color: 'teal',
                     title: 'Gata',
@@ -349,14 +365,14 @@ export function Setari(): React.JSX.Element {
                   })
                 }}
               >
-                Nu mai ignora versiunea {form.values.versiune_ignorata}
+                Nu mai ignora versiunea {infoActualizare.versiuneIgnorata}
               </Button>
             )}
           </Group>
 
-          {stareActualizare.faza !== 'inactiv' && (
-            <Text size="sm" c={stareActualizare.faza === 'eroare' ? 'red.7' : 'dimmed'}>
-              {textStareActualizare(stareActualizare)}
+          {infoActualizare.stare.faza !== 'inactiv' && (
+            <Text size="sm" c={infoActualizare.stare.faza === 'eroare' ? 'red.7' : 'dimmed'}>
+              {textStareActualizare(infoActualizare.stare)}
             </Text>
           )}
         </Paper>
