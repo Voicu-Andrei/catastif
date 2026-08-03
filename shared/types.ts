@@ -392,6 +392,8 @@ export interface CatastifApi {
     check(): Promise<void>
     // Răspunsul la „Actualizare disponibilă”: descarcă / mai târziu / sari peste.
     respond(raspuns: 'da' | 'nu' | 'skip'): Promise<void>
+    // Oprește o descărcare în curs (de exemplu una blocată).
+    cancel(): Promise<void>
     // După ce descărcarea s-a terminat: repornește acum sau la următoarea închidere.
     install(cand: 'acum' | 'la_inchidere'): Promise<void>
     // Anulează un „Nu pentru această versiune” dat din greșeală.

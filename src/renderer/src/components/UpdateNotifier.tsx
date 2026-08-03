@@ -100,6 +100,13 @@ export function UpdateNotifier(): React.JSX.Element {
           <Text size="sm" c="dimmed">
             {stare.procent}% — poți continua să lucrezi. Te anunțăm când e gata.
           </Text>
+          {/* Fără butonul ăsta, o descărcare blocată (proxy de firmă, legătură
+              moartă) ar lăsa fereastra pe ecran, fără nicio ieșire. */}
+          <Group justify="flex-end">
+            <Button variant="subtle" color="gray" onClick={() => window.api.update.cancel()}>
+              Renunță la descărcare
+            </Button>
+          </Group>
         </Stack>
       )}
 

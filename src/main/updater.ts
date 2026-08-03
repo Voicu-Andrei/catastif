@@ -1,5 +1,5 @@
 import { app, ipcMain, BrowserWindow } from 'electron'
-import { autoUpdater } from 'electron-updater'
+import { autoUpdater, CancellationToken } from 'electron-updater'
 import { getSetari, saveSetari } from './db/repos/setari'
 import { jurnal } from './log'
 import type { InfoActualizare, StareActualizare } from '@shared/types'
@@ -24,6 +24,7 @@ let versiuneInLucru: string | null = null
 let versiuneDescarcata: string | null = null
 let instalareInCurs = false
 let cronometru: NodeJS.Timeout | null = null
+let anulareDescarcare: CancellationToken | null = null
 
 // `before-quit` trebuie să sară peste backupul sincron când instalatorul NSIS
 // este deja pornit și așteaptă să închidă aplicația — altfel copierea e tăiată
@@ -146,12 +147,23 @@ export function registerUpdateIpc(): void {
     if (raspuns === 'da') {
       if (stare.faza === 'disponibila') versiuneInLucru = stare.versiune
       versiuneDescarcata = null
+      // Păstrăm jetonul: o descărcare blocată (proxy de firmă, legătură moartă)
+      // trebuie să poată fi oprită. Altfel fereastra rămâne pe ecran cu bara
+      // înțepenită și nicio verificare ulterioară nu mai pornește.
+      anulareDescarcare = new CancellationToken()
       setStare({ faza: 'descarcare', versiune: versiuneInLucru ?? '', procent: 0 })
       try {
-        await autoUpdater.downloadUpdate()
+        await autoUpdater.downloadUpdate(anulareDescarcare)
       } catch (err) {
-        jurnal.error('Descărcare actualizare:', err)
-        setStare({ faza: 'eroare', mesaj: mesajEroare(err) })
+        if (anulareDescarcare?.cancelled) {
+          jurnal.info('Descărcare anulată de utilizator.')
+          setStare({ faza: 'inactiv' })
+        } else {
+          jurnal.error('Descărcare actualizare:', err)
+          setStare({ faza: 'eroare', mesaj: mesajEroare(err) })
+        }
+      } finally {
+        anulareDescarcare = null
       }
       return
     }
@@ -188,6 +200,10 @@ export function registerUpdateIpc(): void {
     // (și fără avertismentul SmartScreen pe care mulți utilizatori l-ar anula).
     // Doar în modul silențios electron-updater ține cont de „repornește după”.
     autoUpdater.quitAndInstall(true, true)
+  })
+
+  ipcMain.handle('update:cancel', (): void => {
+    if (anulareDescarcare && !anulareDescarcare.cancelled) anulareDescarcare.cancel()
   })
 
   ipcMain.handle('update:clearSkipped', (): void => {

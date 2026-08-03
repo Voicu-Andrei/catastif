@@ -85,6 +85,7 @@ const api: CatastifApi = {
     },
     check: () => ipcRenderer.invoke('update:check'),
     respond: (raspuns) => ipcRenderer.invoke('update:response', raspuns),
+    cancel: () => ipcRenderer.invoke('update:cancel'),
     install: (cand) => ipcRenderer.invoke('update:install', cand),
     clearSkipped: () => ipcRenderer.invoke('update:clearSkipped')
   }
