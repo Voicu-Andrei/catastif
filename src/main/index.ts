@@ -2,7 +2,7 @@ import { app, BrowserWindow, shell, Menu, dialog } from 'electron'
 import { join } from 'path'
 import { getDb, closeDb, marcheazaInchiderea, esteInInchidere } from './db/connection'
 import { getSetari } from './db/repos/setari'
-import { backupToSync, rotateBackups } from './backup'
+import { backupToSync, rotateBackups, reparaAtasamente } from './backup'
 import { registerIpc } from './ipc'
 import {
   initAutoUpdate,
@@ -237,6 +237,10 @@ function porneste(): void {
       registerUpdateIpc()
 
       try {
+        // O restaurare întreruptă exact între cele două redenumiri poate lăsa
+        // atașamentele fără folderul lor final. Le punem la loc înainte de a fi
+        // folosite, altfel toate ar părea dispărute de pe disc.
+        reparaAtasamente()
         // Inițializează baza + rulează migrațiile devreme.
         getDb()
       } catch (err) {

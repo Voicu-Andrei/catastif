@@ -17,6 +17,12 @@ function verificaTip(tip: EntitateTip): EntitateTip {
   return tip
 }
 
+// `id` ajunge în cale la fel ca `tip`, deci merită aceeași neîncredere.
+function verificaId(id: number): number {
+  if (!Number.isInteger(id) || id <= 0) throw new Error('Înregistrare invalidă.')
+  return id
+}
+
 // Pe Windows un fișier deschis în alt program (Acrobat, Excel) nu poate fi
 // șters: primim EPERM/EBUSY. Reîncercăm scurt, apoi spunem omenește ce e de făcut.
 function stergeFisier(cale: string): void {
@@ -43,7 +49,7 @@ export function listFisiere(tip: EntitateTip, id: number): Fisier[] {
     .prepare(
       'SELECT * FROM fisiere WHERE entitate_tip = ? AND entitate_id = ? ORDER BY creat_la DESC'
     )
-    .all(verificaTip(tip), id) as Fisier[]
+    .all(verificaTip(tip), verificaId(id)) as Fisier[]
 }
 
 export async function attachFisiere(
@@ -52,6 +58,7 @@ export async function attachFisiere(
   id: number
 ): Promise<Fisier[]> {
   verificaTip(tip)
+  verificaId(id)
   const res = await dialog.showOpenDialog(win!, {
     title: 'Alege fișiere de atașat',
     properties: ['openFile', 'multiSelections']
@@ -120,6 +127,7 @@ export async function openFisier(id: number): Promise<void> {
 // orfane pe disc (ar crește fiecare backup, pentru totdeauna).
 export function stergeAtasamenteEntitate(tip: EntitateTip, id: number): void {
   verificaTip(tip)
+  verificaId(id)
   getDb().prepare('DELETE FROM fisiere WHERE entitate_tip = ? AND entitate_id = ?').run(tip, id)
 
   // Curățarea discului este best-effort și NU trebuie să arunce: înregistrarea
