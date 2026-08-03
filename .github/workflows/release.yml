@@ -57,8 +57,10 @@ jobs:
       # în paralel fiecare poate crea propriul release pentru acel tag, lăsând
       # instalatorul Windows și latest.yml pe unul, iar macOS pe celălalt.
       max-parallel: 1
+      # `ubuntu-latest` produce AppImage-ul pe care electron-builder.yml îl
+      # declară — altfel configurația promitea un artefact care nu exista.
       matrix:
-        os: [windows-latest, macos-latest]
+        os: [windows-latest, macos-latest, ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4

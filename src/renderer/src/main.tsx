@@ -1,7 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { MantineProvider } from '@mantine/core'
-import { Notifications } from '@mantine/notifications'
+import { Notifications, notifications } from '@mantine/notifications'
 import { ModalsProvider } from '@mantine/modals'
 import { createHashRouter, RouterProvider } from 'react-router-dom'
 
@@ -14,6 +14,16 @@ import './index.css'
 import { theme } from './theme'
 import { App } from './App'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import { mesajEroare } from './lib/erori'
+
+// ErrorBoundary prinde doar erorile apărute în timpul randării. Un apel IPC
+// respins într-un handler de buton trece pe lângă el și, fără linia asta, nu
+// lasă nicio urmă pe ecran: utilizatorul apasă „Salvează”, nu se întâmplă
+// nimic și crede că a salvat.
+window.addEventListener('unhandledrejection', (ev) => {
+  ev.preventDefault()
+  notifications.show({ color: 'red', title: 'Eroare', message: mesajEroare(ev.reason) })
+})
 
 // Router „de date” (createHashRouter): permite blocarea navigării cu
 // modificări nesalvate (useBlocker). Rutele propriu-zise rămân în App.

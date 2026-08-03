@@ -152,4 +152,86 @@ describe('backup + restaurare', () => {
     rotesteFolder(folder, BACKUP_PREFIX, 2)
     expect(readdirSync(folder).length).toBe(2)
   })
+
+  it('nu lasă folderul de lucru în urmă după un backup reușit', () => {
+    const folder = tempDir()
+    creeazaBackup(getDb(), paths(), folder)
+    expect(readdirSync(folder).filter((n) => n.startsWith('in-lucru-'))).toEqual([])
+  })
+
+  it('un backup întrerupt nu ocupă un loc între cele păstrate de rotație', () => {
+    // Un backup tăiat la jumătate (aplicație închisă forțat, stick scos) rămâne
+    // sub numele de lucru. Acesta NU trebuie să poarte prefixul backupurilor:
+    // altfel rotația l-ar socoti printre cele 10 păstrate și ar șterge în locul
+    // lui un backup vechi, dar valid.
+    const folder = tempDir()
+    mkdirSync(join(folder, 'in-lucru-20260101-000000'))
+    for (let i = 0; i < 3; i++) {
+      mkdirSync(join(folder, `${BACKUP_PREFIX}2026010${i + 1}-000000`))
+    }
+
+    rotesteFolder(folder, BACKUP_PREFIX, 3)
+
+    // Toate cele trei backupuri bune au supraviețuit — resturile nu au consumat
+    // niciun loc.
+    const ramase = readdirSync(folder).filter((n) => n.startsWith(BACKUP_PREFIX))
+    expect(ramase).toHaveLength(3)
+  })
+
+  it('două backupuri în aceeași secundă nu se contopesc', () => {
+    const folder = tempDir()
+    const unu = creeazaBackup(getDb(), paths(), folder)
+    const doi = creeazaBackup(getDb(), paths(), folder)
+
+    expect(unu).not.toBe(doi)
+    expect(readdirSync(folder).filter((n) => n.startsWith(BACKUP_PREFIX))).toHaveLength(2)
+  })
+
+  it('o restaurare eșuată lasă baza curentă neatinsă', () => {
+    // Cazul real: stick scos, disc plin sau antivirus care blochează fișierul la
+    // jumătatea copierii. Varianta veche scria direct peste baza curentă și o
+    // pierdea; acum copiem alături și redenumim doar la final.
+    createClient({
+      tip: 'firma',
+      nume: 'Firma Curentă',
+      cui: null,
+      nr_reg_com: null,
+      cnp: null,
+      adresa: null,
+      judet: null,
+      oras: null,
+      cod_postal: null,
+      telefon: null,
+      email: null,
+      note: null
+    })
+
+    const backupBun = creeazaBackup(getDb(), paths(), tempDir())
+
+    // Facem copierea să eșuege sigur și portabil: destinația este un folder, iar
+    // `copyFileSync` peste un folder dă EISDIR. Este echivalentul unei copieri
+    // care cade la jumătate din motive de sistem de fișiere.
+    const dest = tempDir()
+    const caleBlocata = join(dest, 'catastif.db')
+    mkdirSync(caleBlocata)
+    writeFileSync(join(caleBlocata, 'martor.txt'), 'nu mă atinge')
+
+    expect(() =>
+      restaureazaBackup(
+        backupBun,
+        { dbPath: caleBlocata, attachmentsDir: join(dest, 'atasamente') },
+        join(testUserData(), 'pre'),
+        { getOpenDb, closeDb }
+      )
+    ).toThrow(/neatinse/i)
+
+    // „Baza” de la destinație a rămas exact cum era…
+    expect(existsSync(join(caleBlocata, 'martor.txt'))).toBe(true)
+    // …și nu a rămas niciun fișier temporar în urmă.
+    expect(existsSync(`${caleBlocata}.nou`)).toBe(false)
+
+    // Iar baza reală a aplicației, deschisă din nou, are datele nealterate.
+    const db = getDb()
+    expect(db.prepare('SELECT nume FROM clienti').pluck().all()).toEqual(['Firma Curentă'])
+  })
 })

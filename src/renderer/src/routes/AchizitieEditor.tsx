@@ -63,6 +63,7 @@ export function AchizitieEditor(): React.JSX.Element {
 
   const [furnizori, setFurnizori] = useState<Furnizor[]>([])
   const [produse, setProduse] = useState<Produs[]>([])
+  const [seSalveaza, setSeSalveaza] = useState(false)
 
   const form = useForm<AchizitieForm>({
     initialValues: {
@@ -139,6 +140,9 @@ export function AchizitieEditor(): React.JSX.Element {
   }
 
   async function salveaza(): Promise<void> {
+    // Un dublu-clic aici înregistra achiziția de două ori și, pentru produsele
+    // cu stoc urmărit, adăuga cantitatea de două ori — fără nicio eroare.
+    if (seSalveaza) return
     const liniiPayload = form
       .getValues()
       .linii.filter((l) => l.descriere.trim() !== '' || l.produs_id)
@@ -165,6 +169,7 @@ export function AchizitieEditor(): React.JSX.Element {
       observatii: form.values.observatii.trim() || null,
       linii: liniiPayload
     }
+    setSeSalveaza(true)
     try {
       let saved: AchizitieDetaliu
       if (esteNou) saved = await window.api.achizitii.create(payload)
@@ -174,6 +179,8 @@ export function AchizitieEditor(): React.JSX.Element {
       navigate(`/achizitii/${saved.id}`)
     } catch (err) {
       notifications.show({ color: 'red', title: 'Eroare', message: mesajEroare(err) })
+    } finally {
+      setSeSalveaza(false)
     }
   }
 
@@ -230,7 +237,11 @@ export function AchizitieEditor(): React.JSX.Element {
               Șterge
             </Button>
           )}
-          <Button leftSection={<IconDeviceFloppy size={18} />} onClick={salveaza}>
+          <Button
+            leftSection={<IconDeviceFloppy size={18} />}
+            onClick={salveaza}
+            loading={seSalveaza}
+          >
             Salvează
           </Button>
         </Group>

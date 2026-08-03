@@ -81,6 +81,10 @@ export function ComandaEditor(): React.JSX.Element {
   const [produse, setProduse] = useState<Produs[]>([])
   const [comanda, setComanda] = useState<ComandaDetaliu | null>(null)
   const [plataLei, setPlataLei] = useState<number | string>('')
+  // Pe Windows dublu-clicul e un reflex; fără garda asta, fiecare buton care
+  // scrie în baza de date poate fi apăsat de două ori înainte să răspundă.
+  const [seSalveaza, setSeSalveaza] = useState(false)
+  const [seAdaugaPlata, setSeAdaugaPlata] = useState(false)
   const setari = useSetari()
   const cotaImplicita = setari?.cota_tva_implicita ?? 21
 
@@ -202,6 +206,9 @@ export function ComandaEditor(): React.JSX.Element {
   }
 
   async function salveaza(): Promise<void> {
+    // Dublu-clic pe „Salvează” la o ofertă nouă crea două oferte identice, cu
+    // numere diferite — descoperite abia mai târziu, umflate în rapoarte.
+    if (seSalveaza) return
     const payload = construiestePayload()
     if (payload.linii.length === 0) {
       notifications.show({
@@ -211,6 +218,7 @@ export function ComandaEditor(): React.JSX.Element {
       })
       return
     }
+    setSeSalveaza(true)
     try {
       if (esteNou) {
         const c = await window.api.comenzi.create(payload)
@@ -224,6 +232,8 @@ export function ComandaEditor(): React.JSX.Element {
       }
     } catch (err) {
       notifications.show({ color: 'red', title: 'Eroare', message: mesajEroare(err) })
+    } finally {
+      setSeSalveaza(false)
     }
   }
 
@@ -322,6 +332,8 @@ export function ComandaEditor(): React.JSX.Element {
   }
 
   async function trimitePlata(suma: number): Promise<void> {
+    if (seAdaugaPlata) return
+    setSeAdaugaPlata(true)
     try {
       const c = await window.api.comenzi.plata(comandaId!, leiToBani(suma))
       incarcaComanda(c)
@@ -333,6 +345,8 @@ export function ComandaEditor(): React.JSX.Element {
       })
     } catch (err) {
       notifications.show({ color: 'red', title: 'Eroare', message: mesajEroare(err) })
+    } finally {
+      setSeAdaugaPlata(false)
     }
   }
 
@@ -421,7 +435,11 @@ export function ComandaEditor(): React.JSX.Element {
               Comandă anulată — doar consultare
             </Text>
           ) : (
-            <Button leftSection={<IconDeviceFloppy size={18} />} onClick={salveaza}>
+            <Button
+              leftSection={<IconDeviceFloppy size={18} />}
+              onClick={salveaza}
+              loading={seSalveaza}
+            >
               Salvează
             </Button>
           )}
@@ -634,7 +652,11 @@ export function ComandaEditor(): React.JSX.Element {
                       onChange={setPlataLei}
                       style={{ flex: 1 }}
                     />
-                    <Button leftSection={<IconCash size={18} />} onClick={inregistreazaPlata}>
+                    <Button
+                      leftSection={<IconCash size={18} />}
+                      onClick={inregistreazaPlata}
+                      loading={seAdaugaPlata}
+                    >
                       Adaugă
                     </Button>
                   </Group>

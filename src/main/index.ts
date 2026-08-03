@@ -59,14 +59,12 @@ process.on('uncaughtException', (err) => {
   )
 })
 
+// O promisiune respinsă NU este motiv de închidere. Multe sunt periferice —
+// `shell.openExternal` respinge pe un Windows fără browser implicit — și a
+// închide aplicația pentru asta ar sări peste backupul automat și ar arunca
+// munca nesalvată. O notăm în jurnal și mergem mai departe.
 process.on('unhandledRejection', (motiv) => {
-  inchideCuEroare(
-    'Catastif — eroare neașteptată',
-    'A apărut o eroare neașteptată și aplicația trebuie închisă. ' +
-      'Datele tale sunt salvate pe disc.\n\n' +
-      String(motiv instanceof Error ? motiv.message : motiv),
-    motiv
-  )
+  jurnal.error('Promisiune respinsă netratată:', motiv)
 })
 
 function createWindow(): void {
@@ -108,7 +106,10 @@ function createWindow(): void {
   fereastra.on('show', () => clearTimeout(asteptareAfisare))
 
   fereastra.webContents.on('did-fail-load', (_e, cod, descriere, url, esteCadruPrincipal) => {
-    if (!esteCadruPrincipal) return
+    // ERR_ABORTED (-3) înseamnă doar că o încărcare a fost înlocuită de alta —
+    // exact ce se întâmplă la fiecare `reload()`, inclusiv la cel oferit după o
+    // prăbușire a interfeței. Nu e o eroare, cu atât mai puțin una fatală.
+    if (!esteCadruPrincipal || cod === -3 || cod === 0) return
     inchideCuEroare(
       'Catastif — interfața nu a putut fi încărcată',
       'Fișierele aplicației par deteriorate. Reinstalează Catastif — ' +
@@ -142,7 +143,9 @@ function createWindow(): void {
   })
 
   fereastra.webContents.setWindowOpenHandler((details) => {
-    shell.openExternal(details.url)
+    shell
+      .openExternal(details.url)
+      .catch((err) => jurnal.warn(`Nu am putut deschide legătura ${details.url}:`, err))
     return { action: 'deny' }
   })
 

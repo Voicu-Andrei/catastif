@@ -39,6 +39,16 @@ export function listComenzi(stare?: StareComanda): ComandaCuExtra[] {
   return rows.map(mapRand)
 }
 
+// Toate operațiunile de mai jos întorc comanda proaspăt citită. `getComanda(id)!`
+// putea fi `undefined` dacă înregistrarea dispărea între timp (ștearsă din altă
+// pagină), iar interfața primea `undefined` și se prăbușea cu o eroare în
+// engleză, în loc să spună ce s-a întâmplat.
+function comandaSauEroare(id: number): ComandaDetaliu {
+  const c = getComanda(id)
+  if (!c) throw new Error('Comanda nu mai există.')
+  return c
+}
+
 export function getComanda(id: number): ComandaDetaliu | undefined {
   const db = getDb()
   const c = db.prepare(`${LIST_SQL} WHERE c.id = @id`).get({ id }) as RandComanda | undefined
@@ -156,7 +166,7 @@ export function updateComanda(id: number, input: ComandaInput): ComandaDetaliu {
     if (cur.stare === 'comanda') aplicaStocComanda(db, id, -1)
   })
   tx()
-  return getComanda(id)!
+  return comandaSauEroare(id)
 }
 
 // Aplică efectul vânzării asupra stocului (semn -1 la confirmare, +1 la anulare).
@@ -180,7 +190,7 @@ export function acceptaComanda(id: number): ComandaDetaliu {
     if (info.changes > 0) aplicaStocComanda(db, id, -1) // vânzarea scade stocul
   })
   tx()
-  return getComanda(id)!
+  return comandaSauEroare(id)
 }
 
 export function anuleazaComanda(id: number): ComandaDetaliu {
@@ -198,7 +208,7 @@ export function anuleazaComanda(id: number): ComandaDetaliu {
     if (c.stare === 'comanda') aplicaStocComanda(db, id, 1) // restituie stocul
   })
   tx()
-  return getComanda(id)!
+  return comandaSauEroare(id)
 }
 
 // Adaugă o plată. Prima plată pe o ofertă o transformă automat în comandă.
@@ -230,7 +240,7 @@ export function inregistreazaPlata(id: number, suma: number): ComandaDetaliu {
     if (devineComanda) aplicaStocComanda(db, id, -1) // vânzarea scade stocul
   })
   tx()
-  return getComanda(id)!
+  return comandaSauEroare(id)
 }
 
 // Ștergerea e permisă doar pentru oferte (schițe). O comandă confirmată a

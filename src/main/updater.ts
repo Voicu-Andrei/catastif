@@ -133,9 +133,11 @@ export function registerUpdateIpc(): void {
   ipcMain.handle('update:install', (_e, cand: 'acum' | 'la_inchidere'): void => {
     if (versiuneDescarcata === null) return
     if (cand === 'la_inchidere') {
-      // electron-updater instalează singur la închiderea aplicației.
+      // electron-updater instalează singur la închiderea aplicației, dintr-un
+      // handler pe evenimentul `quit` — care vine DUPĂ `will-quit`, unde se face
+      // backupul automat. Deci nu marcăm nimic: backupul apucă să ruleze întreg,
+      // exact ca la o închidere obișnuită, și abia apoi pornește instalatorul.
       autoUpdater.autoInstallOnAppQuit = true
-      instalareInCurs = true
       setStare({ faza: 'inactiv' })
       jurnal.info('Actualizarea se va instala la următoarea închidere.')
       return
