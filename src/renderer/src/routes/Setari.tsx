@@ -106,6 +106,12 @@ export function Setari(): React.JSX.Element {
         numar_factura_curent: Number(values.numar_factura_curent),
         prag_stoc_implicit: Number(values.prag_stoc_implicit)
       }
+      // `versiune_ignorata` aparține fluxului de actualizare, nu formularului
+      // ăstuia: el o citește o singură dată, la montare. Dacă între timp
+      // utilizatorul a apăsat „Nu pentru această versiune” în fereastra de
+      // actualizare, un „Salvează” aici ar trimite înapoi valoarea veche și ar
+      // anula alegerea tocmai făcută.
+      delete payload.versiune_ignorata
       const saved = await window.api.setari.save(payload)
       invalidateSetari()
       form.resetDirty(saved)
@@ -151,7 +157,16 @@ export function Setari(): React.JSX.Element {
       confirmProps: { color: 'red' },
       onConfirm: async () => {
         const res = await window.api.backup.importFrom()
-        if (!res.ok) {
+        if (res.ok) {
+          // Procesul principal amână repornirea cu câteva sute de milisecunde
+          // tocmai ca mesajul ăsta să apuce să ajungă pe ecran: altfel fereastra
+          // ar dispărea fără explicație și ar semăna cu o prăbușire.
+          notifications.show({
+            color: 'teal',
+            title: 'Restaurare reușită',
+            message: res.mesaj ?? 'Aplicația se repornește…'
+          })
+        } else {
           notifications.show({
             color: 'red',
             title: 'Restaurare eșuată',
@@ -316,6 +331,11 @@ export function Setari(): React.JSX.Element {
             >
               Verifică acum
             </Button>
+            {stareActualizare.faza === 'descarcata' && (
+              <Button onClick={() => window.api.update.install('acum')}>
+                Repornește și instalează
+              </Button>
+            )}
             {form.values.versiune_ignorata && (
               <Button
                 variant="subtle"

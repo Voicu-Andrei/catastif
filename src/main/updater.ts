@@ -85,6 +85,10 @@ function conecteazaEvenimente(): void {
 
   autoUpdater.on('error', (err) => {
     jurnal.error('Actualizare automată:', err)
+    // Dacă instalarea nu a apucat să pornească (instalator lipsă, pus în
+    // carantină de antivirus), aplicația rămâne deschisă. Fără resetarea asta,
+    // steagul ar rămâne ridicat și ar sări peste backupul automat la nesfârșit.
+    instalareInCurs = false
     setStare({ faza: 'eroare', mesaj: mesajEroare(err) })
   })
 }
@@ -102,6 +106,13 @@ export function registerUpdateIpc(): void {
         faza: 'eroare',
         mesaj: 'Actualizările funcționează doar în aplicația instalată, nu în modul dezvoltare.'
       })
+      return
+    }
+    // O verificare pornită peste una în desfășurare ar rescrie starea: bara de
+    // progres ar dispărea, apoi ar reapărea întrebarea „Actualizare
+    // disponibilă?” în timp ce descărcarea încă rulează.
+    if (stare.faza === 'verificare' || stare.faza === 'descarcare' || stare.faza === 'descarcata') {
+      setStare(stare)
       return
     }
     try {
@@ -125,19 +136,26 @@ export function registerUpdateIpc(): void {
       return
     }
     if (raspuns === 'skip' && stare.faza === 'disponibila') {
-      saveSetari({ versiune_ignorata: stare.versiune })
+      // Dacă scrierea eșuează (bază blocată, aplicație în curs de închidere),
+      // tot trebuie să ieșim din starea „disponibila” — altfel rămâne agățată
+      // acolo și nicio verificare ulterioară nu mai pornește.
+      try {
+        saveSetari({ versiune_ignorata: stare.versiune })
+      } catch (err) {
+        jurnal.error('Nu am putut reține versiunea ignorată:', err)
+      }
     }
     setStare({ faza: 'inactiv' })
   })
 
   ipcMain.handle('update:install', (_e, cand: 'acum' | 'la_inchidere'): void => {
-    if (versiuneDescarcata === null) return
+    // Garda se pune pe stare, nu pe `versiuneDescarcata`: aceasta e completată
+    // încă de la începutul descărcării, deci nu dovedește că există ceva pe disc.
+    if (stare.faza !== 'descarcata') return
     if (cand === 'la_inchidere') {
-      // electron-updater instalează singur la închiderea aplicației, dintr-un
-      // handler pe evenimentul `quit` — care vine DUPĂ `will-quit`, unde se face
-      // backupul automat. Deci nu marcăm nimic: backupul apucă să ruleze întreg,
-      // exact ca la o închidere obișnuită, și abia apoi pornește instalatorul.
-      autoUpdater.autoInstallOnAppQuit = true
+      // Nu e nimic de pornit aici: `autoInstallOnAppQuit` e deja `true` de la
+      // inițializare (vezi initAutoUpdate), iar electron-updater instalează
+      // singur pe `quit`, după ce `will-quit` a terminat backupul.
       setStare({ faza: 'inactiv' })
       jurnal.info('Actualizarea se va instala la următoarea închidere.')
       return
@@ -162,10 +180,15 @@ export function initAutoUpdate(): void {
 
   autoUpdater.logger = jurnal
   autoUpdater.autoDownload = false
-  // Rămâne pe `false` până când utilizatorul cere explicit „la închidere”:
-  // altfel o instalare tăcută poate porni la orice închidere, în paralel cu
-  // backupul automat, și o taie la jumătate.
-  autoUpdater.autoInstallOnAppQuit = false
+  // TREBUIE să fie `true` ÎNAINTE de descărcare. electron-updater își pune
+  // cârligul de instalare-la-închidere o singură dată, din `executeDownload`,
+  // iar `addQuitHandler()` iese imediat dacă `autoInstallOnAppQuit` e fals în
+  // clipa aceea (BaseUpdater.js). Setat mai târziu, nu ar mai avea niciun
+  // efect, iar „La următoarea închidere” nu ar instala niciodată nimic.
+  //
+  // Nu e o cursă cu backupul automat: cârligul lor rulează pe `quit`, care vine
+  // după `will-quit`, unde facem backupul. Backupul apucă să se termine întreg.
+  autoUpdater.autoInstallOnAppQuit = true
 
   conecteazaEvenimente()
 

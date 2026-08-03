@@ -3,6 +3,7 @@ import { join } from 'path'
 import Database from 'better-sqlite3'
 import { runMigrations, versiuneSchemaAplicatie, versiuneSchemaFisier } from './migrate'
 import { snapshotDb, rotesteFolder, timestamp } from '../backup-core'
+import { jurnal } from '../log'
 
 let db: Database.Database | null = null
 let seInchide = false
@@ -40,9 +41,18 @@ function pregatesteSchema(conexiune: Database.Database): void {
   // Prima rulare (bază goală) nu are ce pierde: sărim peste snapshot.
   if (aFisierului > 0 && aFisierului < aAplicatiei) {
     const dir = preActualizareDir()
-    const dest = join(dir, `catastif-schema${aFisierului}-${timestamp()}.db`)
-    snapshotDb(conexiune, dest)
-    rotesteFolder(dir, 'catastif-schema', 5)
+    try {
+      // Facem loc înainte de a scrie, nu după: pe un disc aproape plin,
+      // rotația de după nu ar mai apuca să ajute la nimic.
+      rotesteFolder(dir, 'catastif-schema', 4)
+      snapshotDb(conexiune, join(dir, `catastif-schema${aFisierului}-${timestamp()}.db`))
+    } catch (err) {
+      // Copia este o precauție, nu o condiție de pornire. Dacă discul e plin
+      // sau folderul nu poate fi scris, a refuza pornirea ar fi mai rău decât
+      // problema pe care o prevenim: utilizatorul ar rămâne fără aplicație,
+      // deși datele lui sunt perfect bune. Migrațiile sunt oricum tranzacționale.
+      jurnal.warn('Nu am putut face copia de siguranță dinaintea migrației:', err)
+    }
   }
 
   runMigrations(conexiune)
@@ -78,6 +88,10 @@ export function getOpenDb(): Database.Database | null {
 
 export function marcheazaInchiderea(): void {
   seInchide = true
+}
+
+export function esteInInchidere(): boolean {
+  return seInchide
 }
 
 export function closeDb(): void {

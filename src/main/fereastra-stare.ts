@@ -76,13 +76,24 @@ export function stareInitialaFereastra(): StareFereastra {
   const salvata = citeste()
   if (!salvata) return implicita
 
-  const b: Rectangle = {
+  const salvatRect: Rectangle = {
     x: salvata.x ?? zona.x,
     y: salvata.y ?? zona.y,
-    width: Math.max(LATIME_MINIMA, Math.min(salvata.width, zona.width)),
-    height: Math.max(INALTIME_MINIMA, Math.min(salvata.height, zona.height))
+    width: salvata.width,
+    height: salvata.height
   }
-  if (!esteVizibila(b)) return { ...implicita, maximizata: salvata.maximizata }
+  if (!esteVizibila(salvatRect)) return { ...implicita, maximizata: salvata.maximizata }
+
+  // Limitele se iau de la ecranul pe care chiar stă fereastra, nu de la cel
+  // principal: altfel o fereastră de 1900 px de pe un monitor extern ar fi
+  // strânsă la lățimea laptopului de fiecare dată când aplicația repornește.
+  const ecran = screen.getDisplayMatching(salvatRect).workArea
+  const b: Rectangle = {
+    x: salvatRect.x,
+    y: salvatRect.y,
+    width: Math.max(LATIME_MINIMA, Math.min(salvata.width, ecran.width)),
+    height: Math.max(INALTIME_MINIMA, Math.min(salvata.height, ecran.height))
+  }
 
   return { x: b.x, y: b.y, width: b.width, height: b.height, maximizata: salvata.maximizata }
 }

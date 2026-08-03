@@ -1,6 +1,6 @@
 import { app, BrowserWindow, shell, Menu, dialog } from 'electron'
 import { join } from 'path'
-import { getDb, closeDb, marcheazaInchiderea } from './db/connection'
+import { getDb, closeDb, marcheazaInchiderea, esteInInchidere } from './db/connection'
 import { getSetari } from './db/repos/setari'
 import { backupToSync, rotateBackups } from './backup'
 import { registerIpc } from './ipc'
@@ -39,7 +39,16 @@ if (!suntemSinguraInstanta) {
   porneste()
 }
 
-function inchideCuEroare(titlu: string, mesaj: string, err: unknown): never {
+let seInchideCuEroare = false
+
+// Atenție: NU aruncă. Odată ce bucla de mesaje rulează, `app.exit()` nu
+// termină procesul pe loc, ci se întoarce în JavaScript — iar o aruncare de
+// aici ar ajunge în `uncaughtException`, care ar deschide o a doua casetă de
+// eroare, cu alt text, peste prima. Apelanții se opresc singuri (`return`).
+function inchideCuEroare(titlu: string, mesaj: string, err: unknown): void {
+  if (seInchideCuEroare) return
+  seInchideCuEroare = true
+
   jurnal.error(`${titlu}:`, err)
   dialog.showErrorBox(titlu, `${mesaj}\n\nDetalii în:\n${caleJurnalAplicatie()}`)
   try {
@@ -49,8 +58,6 @@ function inchideCuEroare(titlu: string, mesaj: string, err: unknown): never {
     // Nu mai avem ce salva; important e să nu rămână procesul agățat.
   }
   app.exit(1)
-  // `app.exit` nu se întoarce, dar TypeScript nu știe asta.
-  throw err
 }
 
 // O eroare neprinsă în procesul principal nu trebuie să lase în urmă un proces
@@ -95,11 +102,16 @@ function createWindow(): void {
       nodeIntegration: false
     }
   })
-  if (stare.maximizata) mainWindow.maximize()
-
   const fereastra = mainWindow
 
-  fereastra.on('ready-to-show', () => fereastra.show())
+  // `maximize()` afișează fereastra chiar dacă e încă ascunsă, așa că nu poate
+  // fi chemat la construcție: utilizatorul care lucrează maximizat (cazul
+  // obișnuit) ar vedea un dreptunghi gol pe tot ecranul cât durează pornirea
+  // interfeței. Îl amânăm până când chiar e ceva de arătat.
+  fereastra.on('ready-to-show', () => {
+    if (stare.maximizata) fereastra.maximize()
+    else fereastra.show()
+  })
 
   // Plasă de siguranță: dacă `ready-to-show` nu vine (bundle deteriorat de o
   // actualizare întreruptă, fișier pus în carantină de antivirus), aplicația ar
@@ -110,7 +122,10 @@ function createWindow(): void {
       fereastra.show()
     }
   }, 10_000)
+  // `unref` ca temporizatorul să nu țină procesul în viață la închidere.
+  asteptareAfisare.unref()
   fereastra.on('show', () => clearTimeout(asteptareAfisare))
+  fereastra.on('closed', () => clearTimeout(asteptareAfisare))
 
   fereastra.webContents.on('did-fail-load', (_e, cod, descriere, url, esteCadruPrincipal) => {
     // ERR_ABORTED (-3) înseamnă doar că o încărcare a fost înlocuită de alta —
@@ -206,38 +221,53 @@ function configureazaMeniu(): void {
 }
 
 function porneste(): void {
-  app.whenReady().then(() => {
-    // Fără asta, Windows nu leagă fereastra de scurtătura fixată în bara de
-    // activități: apar două pictograme, iar notificările nu au identitate.
-    // Trebuie să fie exact `appId` din electron-builder.yml.
-    if (process.platform === 'win32') app.setAppUserModelId('ro.catastif.app')
+  app
+    .whenReady()
+    .then(() => {
+      // Fără asta, Windows nu leagă fereastra de scurtătura fixată în bara de
+      // activități: apar două pictograme, iar notificările nu au identitate.
+      // Trebuie să fie exact `appId` din electron-builder.yml.
+      if (process.platform === 'win32') app.setAppUserModelId('ro.catastif.app')
 
-    jurnal.info(`Catastif ${app.getVersion()} pornește (${process.platform}).`)
+      jurnal.info(`Catastif ${app.getVersion()} pornește (${process.platform}).`)
 
-    configureazaMeniu()
-    // Canalele de actualizare se înregistrează înaintea bazei: chiar dacă baza
-    // nu poate fi deschisă, interfața trebuie să poată cere starea fără să crape.
-    registerUpdateIpc()
+      configureazaMeniu()
+      // Canalele de actualizare se înregistrează înaintea bazei: chiar dacă baza
+      // nu poate fi deschisă, interfața trebuie să poată cere starea fără să crape.
+      registerUpdateIpc()
 
-    try {
-      // Inițializează baza + rulează migrațiile devreme.
-      getDb()
-    } catch (err) {
+      try {
+        // Inițializează baza + rulează migrațiile devreme.
+        getDb()
+      } catch (err) {
+        inchideCuEroare(
+          'Catastif — baza de date nu poate fi deschisă',
+          String(err instanceof Error ? err.message : err),
+          err
+        )
+        return
+      }
+
+      registerIpc()
+      createWindow()
+      initAutoUpdate()
+
+      app.on('activate', () => {
+        if (BrowserWindow.getAllWindows().length === 0) createWindow()
+      })
+    })
+    // Fără asta, orice eroare de după deschiderea bazei (înregistrarea IPC,
+    // crearea ferestrei) ar deveni o promisiune respinsă — doar notată în
+    // jurnal — lăsând un proces fără fereastră, pe care utilizatorul nu-l vede
+    // și care ține baza deschisă. Aici chiar trebuie să închidem.
+    .catch((err) =>
       inchideCuEroare(
-        'Catastif — baza de date nu poate fi deschisă',
-        String(err instanceof Error ? err.message : err),
+        'Catastif — pornirea a eșuat',
+        'Aplicația nu a putut porni. Datele tale nu sunt afectate.\n\n' +
+          String(err instanceof Error ? err.message : err),
         err
       )
-    }
-
-    registerIpc()
-    createWindow()
-    initAutoUpdate()
-
-    app.on('activate', () => {
-      if (BrowserWindow.getAllWindows().length === 0) createWindow()
-    })
-  })
+    )
 }
 
 // Backup automat la închidere (dacă e activat) + închidere curată a bazei.
@@ -255,6 +285,11 @@ app.on('will-quit', () => {
     // rămâne pe disc arătând ca unul bun — mai bine îl sărim.
     if (instalareActualizareInCurs()) {
       jurnal.info('Instalare în curs — sar peste backupul automat.')
+    } else if (esteInInchidere()) {
+      // Restaurare tocmai încheiată: baza de pe disc este cea din backup. Un
+      // backup al ei acum ar fi redundant, iar rotația ar putea șterge exact
+      // folderul din care utilizatorul tocmai a restaurat.
+      jurnal.info('Restaurare în curs — sar peste backupul automat.')
     } else {
       const s = getSetari()
       if (s.auto_backup && s.backup_folder) {

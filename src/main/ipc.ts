@@ -3,6 +3,7 @@ import type { BackupResult, Setari } from '@shared/types'
 import type { EntitateTip, ExportFormat } from '@shared/types'
 import { getSetari, saveSetari } from './db/repos/setari'
 import { backupToSync, rotateBackups, restoreFromSync } from './backup'
+import { marcheazaInchiderea } from './db/connection'
 import { registerEntitiesIpc } from './ipc-entities'
 import { getDashboard } from './db/repos/dashboard'
 import { searchGlobal } from './db/repos/search'
@@ -95,6 +96,11 @@ export function registerIpc(): void {
         return { ok: false, mesaj: 'Restaurare anulată.' }
       }
       restoreFromSync(res.filePaths[0])
+      // Baza tocmai a fost înlocuită și conexiunea închisă. Fără marcajul ăsta,
+      // `will-quit` ar chema `getSetari()`, ar redeschide baza restaurată, ar
+      // face un backup automat al ei și — prin rotație — ar putea șterge exact
+      // backupul din care tocmai s-a restaurat.
+      marcheazaInchiderea()
       // Repornim pentru a reîncărca baza restaurată. `app.quit()`, nu
       // `app.exit()`: exit sare peste `will-quit`, deci peste închiderea curată
       // a bazei, iar procesul nou ar putea găsi fișierul încă blocat.

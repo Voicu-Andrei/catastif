@@ -34,6 +34,12 @@ export function UpdateNotifier(): React.JSX.Element {
       opened={vizibil}
       onClose={() => {
         if (stare.faza === 'disponibila') window.api.update.respond('nu')
+        // Închiderea ferestrei cu Esc sau clic în afară nu trebuie să lase
+        // procesul principal blocat pe „descarcata” (starea din care nicio
+        // verificare nu mai pornește) în timp ce interfața crede că s-a
+        // terminat. O tratăm ca pe alegerea „la următoarea închidere”, ceea ce
+        // și este: actualizarea descărcată se instalează oricum la închidere.
+        if (stare.faza === 'descarcata') window.api.update.install('la_inchidere')
         inchide()
       }}
       title="Actualizare disponibilă"
