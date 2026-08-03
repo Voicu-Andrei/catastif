@@ -3,6 +3,7 @@ import { getDb } from '../connection'
 import { ajusteazaStoc } from './stoc'
 import { calcComanda } from '@shared/calc'
 import { valideazaComanda, valideazaSumaPlata } from '../validate'
+import { normalizeazaUm } from '@shared/um'
 import type {
   ComandaCuExtra,
   ComandaDetaliu,
@@ -75,7 +76,7 @@ function insertLinii(db: Database, comandaId: number, linii: LinieComandaInput[]
       produs_id: l.produs_id ?? null,
       descriere: l.descriere,
       cantitate: l.cantitate,
-      unitate_masura: l.unitate_masura || 'buc',
+      unitate_masura: normalizeazaUm(l.unitate_masura),
       cost_unitar: l.cost_unitar,
       pret_unitar: l.pret_unitar,
       cota_tva: l.cota_tva,

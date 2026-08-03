@@ -74,7 +74,9 @@ const api: CatastifApi = {
   },
   pdf: {
     comanda: (id) => ipcRenderer.invoke('pdf:comanda', id),
-    raport: (an) => ipcRenderer.invoke('pdf:raport', an)
+    raport: (an) => ipcRenderer.invoke('pdf:raport', an),
+    previzualizeazaComanda: (id) => ipcRenderer.invoke('pdf:previzualizeazaComanda', id),
+    previzualizeazaRaport: (an) => ipcRenderer.invoke('pdf:previzualizeazaRaport', an)
   },
   update: {
     state: () => ipcRenderer.invoke('update:getStare'),

@@ -52,7 +52,8 @@ export interface Produs {
   nume: string
   descriere: string | null
   unitate_masura: string
-  pret_referinta: number | null // bani
+  cost_referinta: number | null // bani — cât plătim noi pe unitate (achiziție)
+  pret_referinta: number | null // bani — cât încasăm de la client (vânzare)
   cota_tva: number
   track_stock: boolean
   stoc_curent: number
@@ -381,8 +382,13 @@ export interface CatastifApi {
     ): Promise<BackupResult>
   }
   pdf: {
+    // Salvează pe disc (deschide dialogul „Salvează ca”).
     comanda(id: number): Promise<BackupResult>
     raport(an: number): Promise<BackupResult>
+    // Deschide documentul într-o fereastră de previzualizare, fără a scrie nimic
+    // în documentele utilizatorului.
+    previzualizeazaComanda(id: number): Promise<BackupResult>
+    previzualizeazaRaport(an: number): Promise<BackupResult>
   }
   update: {
     // Starea curentă, cerută la montarea interfeței (nu pierde anunțuri timpurii).

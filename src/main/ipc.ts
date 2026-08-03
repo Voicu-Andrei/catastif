@@ -10,7 +10,12 @@ import { searchGlobal } from './db/repos/search'
 import { listFisiere, attachFisiere, openFisier, deleteFisier } from './files'
 import { getRapoarte } from './db/repos/rapoarte'
 import { exportTabel } from './export'
-import { generatePdfComanda, generatePdfRaport } from './pdf'
+import {
+  generatePdfComanda,
+  generatePdfRaport,
+  previzualizeazaPdfComanda,
+  previzualizeazaPdfRaport
+} from './pdf'
 
 function winFrom(e: Electron.IpcMainInvokeEvent): BrowserWindow | undefined {
   return BrowserWindow.fromWebContents(e.sender) ?? undefined
@@ -43,6 +48,12 @@ export function registerIpc(): void {
   )
   ipcMain.handle('pdf:comanda', (e, id: number) => generatePdfComanda(winFrom(e), id))
   ipcMain.handle('pdf:raport', (e, an: number) => generatePdfRaport(winFrom(e), an))
+  ipcMain.handle('pdf:previzualizeazaComanda', (e, id: number) =>
+    previzualizeazaPdfComanda(winFrom(e), id)
+  )
+  ipcMain.handle('pdf:previzualizeazaRaport', (e, an: number) =>
+    previzualizeazaPdfRaport(winFrom(e), an)
+  )
 
   // --- Setări ---
   ipcMain.handle('setari:get', () => getSetari())

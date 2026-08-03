@@ -82,7 +82,8 @@ export function valideazaAchizitie(input: AchizitieInput): void {
 export function valideazaProdus(input: ProdusInput): void {
   cereNume(input.nume, 'Numele produsului este obligatoriu.')
   cereCotaTva(input.cota_tva, 'Produs')
-  if (input.pret_referinta != null) cereBaniPozitivi(input.pret_referinta, 'Preț de referință')
+  if (input.cost_referinta != null) cereBaniPozitivi(input.cost_referinta, 'Cost de achiziție')
+  if (input.pret_referinta != null) cereBaniPozitivi(input.pret_referinta, 'Preț de vânzare')
   if (!esteNumar(input.stoc_curent ?? 0) || (input.stoc_curent ?? 0) < 0) {
     throw new Error('Stocul curent nu poate fi negativ.')
   }

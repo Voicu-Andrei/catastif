@@ -9,6 +9,7 @@ const produs = (nume: string) =>
     nume,
     descriere: null,
     unitate_masura: 'buc',
+    cost_referinta: null,
     pret_referinta: null,
     cota_tva: 21,
     track_stock: false,

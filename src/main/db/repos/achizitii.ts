@@ -2,6 +2,7 @@ import type { Database } from 'better-sqlite3'
 import { getDb } from '../connection'
 import { ajusteazaStoc } from './stoc'
 import { valideazaAchizitie } from '../validate'
+import { normalizeazaUm } from '@shared/um'
 import type {
   AchizitieCuExtra,
   AchizitieDetaliu,
@@ -57,7 +58,7 @@ function insertLinii(
       produs_id: l.produs_id ?? null,
       descriere: l.descriere,
       cantitate: l.cantitate,
-      unitate_masura: l.unitate_masura || 'buc',
+      unitate_masura: normalizeazaUm(l.unitate_masura),
       cost_unitar: l.cost_unitar,
       data: l.data || data
     })

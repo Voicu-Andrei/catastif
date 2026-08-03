@@ -13,7 +13,7 @@ import {
 } from '@mantine/core'
 import { BarChart } from '@mantine/charts'
 import { notifications } from '@mantine/notifications'
-import { IconPrinter } from '@tabler/icons-react'
+import { IconEye, IconPrinter } from '@tabler/icons-react'
 import type { RaportData } from '@shared/types'
 import { PageHeader, EroareIncarcare } from '../components/Placeholder'
 import { mesajEroare } from '../lib/erori'
@@ -41,6 +41,28 @@ export function Rapoarte(): React.JSX.Element {
   const [data, setData] = useState<RaportData | null>(null)
   const [eroare, setEroare] = useState<string | null>(null)
   const [sePregatestePdf, setSePregatestePdf] = useState(false)
+  const [sePregatesteVizualizare, setSePregatesteVizualizare] = useState(false)
+
+  // Previzualizarea deschide raportul într-o fereastră proprie, fără să ceară
+  // unde să fie salvat — util când vrei doar să te uiți peste cifre.
+  async function previzualizeazaPdf(): Promise<void> {
+    if (sePregatesteVizualizare) return
+    setSePregatesteVizualizare(true)
+    try {
+      const r = await window.api.pdf.previzualizeazaRaport(an)
+      if (!r.ok && r.mesaj) {
+        notifications.show({ color: 'red', title: 'Previzualizare eșuată', message: r.mesaj })
+      }
+    } catch (err) {
+      notifications.show({
+        color: 'red',
+        title: 'Previzualizare eșuată',
+        message: mesajEroare(err)
+      })
+    } finally {
+      setSePregatesteVizualizare(false)
+    }
+  }
 
   // Rezultatul era aruncat: un disc plin sau un folder de rețea deconectat
   // însemnau că nu se întâmpla absolut nimic pe ecran, la nesfârșit.
@@ -93,11 +115,19 @@ export function Rapoarte(): React.JSX.Element {
             />
             <Button
               variant="default"
+              leftSection={<IconEye size={18} />}
+              onClick={previzualizeazaPdf}
+              loading={sePregatesteVizualizare}
+            >
+              Vezi PDF
+            </Button>
+            <Button
+              variant="default"
               leftSection={<IconPrinter size={18} />}
               onClick={exportaPdf}
               loading={sePregatestePdf}
             >
-              Exportă PDF
+              Salvează PDF
             </Button>
           </Group>
         }

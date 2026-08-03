@@ -1,5 +1,6 @@
 import { getDb } from '../connection'
 import { valideazaProdus } from '../validate'
+import { normalizeazaUm } from '@shared/um'
 import type { Produs, ProdusInput } from '@shared/types'
 
 interface RandProdus extends Omit<Produs, 'track_stock'> {
@@ -31,7 +32,8 @@ function bind(input: ProdusInput): Record<string, unknown> {
   return {
     nume: input.nume,
     descriere: input.descriere ?? null,
-    unitate_masura: input.unitate_masura || 'buc',
+    unitate_masura: normalizeazaUm(input.unitate_masura),
+    cost_referinta: input.cost_referinta ?? null,
     pret_referinta: input.pret_referinta ?? null,
     cota_tva: input.cota_tva,
     track_stock: input.track_stock ? 1 : 0,
@@ -45,10 +47,10 @@ export function createProdus(input: ProdusInput): Produs {
   valideazaProdus(input)
   const info = getDb()
     .prepare(
-      `INSERT INTO produse (nume, descriere, unitate_masura, pret_referinta, cota_tva,
-        track_stock, stoc_curent, prag_stoc, furnizor_id)
-       VALUES (@nume, @descriere, @unitate_masura, @pret_referinta, @cota_tva,
-        @track_stock, @stoc_curent, @prag_stoc, @furnizor_id)`
+      `INSERT INTO produse (nume, descriere, unitate_masura, cost_referinta, pret_referinta,
+        cota_tva, track_stock, stoc_curent, prag_stoc, furnizor_id)
+       VALUES (@nume, @descriere, @unitate_masura, @cost_referinta, @pret_referinta,
+        @cota_tva, @track_stock, @stoc_curent, @prag_stoc, @furnizor_id)`
     )
     .run(bind(input))
   return getProdus(Number(info.lastInsertRowid))!
@@ -59,7 +61,8 @@ export function updateProdus(id: number, input: ProdusInput): Produs {
   getDb()
     .prepare(
       `UPDATE produse SET nume=@nume, descriere=@descriere, unitate_masura=@unitate_masura,
-        pret_referinta=@pret_referinta, cota_tva=@cota_tva, track_stock=@track_stock,
+        cost_referinta=@cost_referinta, pret_referinta=@pret_referinta,
+        cota_tva=@cota_tva, track_stock=@track_stock,
         stoc_curent=@stoc_curent, prag_stoc=@prag_stoc, furnizor_id=@furnizor_id,
         actualizat_la=datetime('now')
        WHERE id=@id`

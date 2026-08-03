@@ -31,10 +31,12 @@ import {
   IconTrash,
   IconBan,
   IconDeviceFloppy,
-  IconPrinter
+  IconPrinter,
+  IconEye
 } from '@tabler/icons-react'
 import type { Client, ComandaDetaliu, ComandaInput, Produs } from '@shared/types'
 import { calcComanda, calcLinie } from '@shared/calc'
+import { UM_SELECT_DATA, normalizeazaUm } from '@shared/um'
 import { baniToLei, leiToBani } from '../lib/money'
 import { formatLei, formatData } from '../lib/format'
 import { STARE_META } from '../lib/stare'
@@ -172,14 +174,19 @@ export function ComandaEditor(): React.JSX.Element {
         p.descriere ? `${p.nume} — ${p.descriere}` : p.nume
       )
     }
-    form.setFieldValue(`linii.${idx}.unitate_masura`, p.unitate_masura)
+    form.setFieldValue(`linii.${idx}.unitate_masura`, normalizeazaUm(p.unitate_masura))
     form.setFieldValue(`linii.${idx}.cota_tva`, p.cota_tva)
+
+    // Cele două casete au surse diferite și nu trebuie confundate:
+    //   Preț  = cât cerem de la client  -> pret_referinta (prețul de vânzare)
+    //   Cost  = cât plătim noi          -> cost_referinta, iar dacă produsul nu
+    //           are unul, ultimul cost real dintr-o achiziție.
     if (p.pret_referinta != null && (cur.pret_lei === '' || Number(cur.pret_lei) === 0)) {
       form.setFieldValue(`linii.${idx}.pret_lei`, baniToLei(p.pret_referinta))
     }
-    // Pre-completează costul cu ultimul cost de achiziție, dacă există.
-    if (p.ultim_cost != null && (cur.cost_lei === '' || Number(cur.cost_lei) === 0)) {
-      form.setFieldValue(`linii.${idx}.cost_lei`, baniToLei(p.ultim_cost))
+    const cost = p.cost_referinta ?? p.ultim_cost
+    if (cost != null && (cur.cost_lei === '' || Number(cur.cost_lei) === 0)) {
+      form.setFieldValue(`linii.${idx}.cost_lei`, baniToLei(cost))
     }
   }
 
@@ -357,6 +364,15 @@ export function ComandaEditor(): React.JSX.Element {
     }
   }
 
+  // Previzualizarea deschide documentul într-o fereastră proprie; nu scrie nimic
+  // pe disc în afara unui fișier temporar, șters la închiderea ferestrei.
+  async function previzualizeazaPdf(): Promise<void> {
+    const r = await window.api.pdf.previzualizeazaComanda(comandaId!)
+    if (!r.ok && r.mesaj) {
+      notifications.show({ color: 'red', title: 'Eroare previzualizare', message: r.mesaj })
+    }
+  }
+
   const stareMeta = comanda ? STARE_META[comanda.stare] : STARE_META.oferta
   const linii = form.getValues().linii
 
@@ -422,13 +438,22 @@ export function ComandaEditor(): React.JSX.Element {
             </Button>
           )}
           {!esteNou && (
-            <Button
-              variant="default"
-              leftSection={<IconPrinter size={18} />}
-              onClick={tiparestePdf}
-            >
-              PDF
-            </Button>
+            <>
+              <Button
+                variant="default"
+                leftSection={<IconEye size={18} />}
+                onClick={previzualizeazaPdf}
+              >
+                Vezi PDF
+              </Button>
+              <Button
+                variant="default"
+                leftSection={<IconPrinter size={18} />}
+                onClick={tiparestePdf}
+              >
+                Salvează PDF
+              </Button>
+            </>
           )}
           {comanda?.stare === 'anulata' ? (
             <Text c="dimmed" size="sm">
@@ -469,7 +494,12 @@ export function ComandaEditor(): React.JSX.Element {
 
           <Paper withBorder radius="lg" p="lg">
             <Group justify="space-between" mb="sm">
-              <Text fw={600}>Linii</Text>
+              <Group gap={6}>
+                <Text fw={600}>Linii</Text>
+                <Text size="xs" c="dimmed">
+                  — costul este cât plătești tu, prețul este cât încasezi de la client
+                </Text>
+              </Group>
               <Button
                 size="xs"
                 variant="light"
@@ -480,13 +510,14 @@ export function ComandaEditor(): React.JSX.Element {
               </Button>
             </Group>
             <ScrollArea>
-              <Table verticalSpacing="xs" horizontalSpacing="xs" miw={820}>
+              <Table verticalSpacing="xs" horizontalSpacing="xs" miw={940}>
                 <Table.Thead>
                   <Table.Tr>
                     <Table.Th style={{ minWidth: 260 }}>Descriere</Table.Th>
                     <Table.Th w={80}>Cant.</Table.Th>
-                    <Table.Th w={110}>Cost/buc</Table.Th>
-                    <Table.Th w={110}>Preț/buc</Table.Th>
+                    <Table.Th w={90}>U.M.</Table.Th>
+                    <Table.Th w={120}>Cost unitar</Table.Th>
+                    <Table.Th w={120}>Preț unitar</Table.Th>
                     <Table.Th w={90}>TVA</Table.Th>
                     <Table.Th w={110} ta="right">
                       Profit
@@ -522,9 +553,21 @@ export function ComandaEditor(): React.JSX.Element {
                           <NumberInput
                             size="xs"
                             min={0}
+                            decimalSeparator=","
                             hideControls
                             key={form.key(`linii.${idx}.cantitate`)}
                             {...form.getInputProps(`linii.${idx}.cantitate`)}
+                          />
+                        </Table.Td>
+                        <Table.Td>
+                          <Select
+                            size="xs"
+                            data={UM_SELECT_DATA}
+                            allowDeselect={false}
+                            value={normalizeazaUm(linii[idx].unitate_masura)}
+                            onChange={(v) =>
+                              form.setFieldValue(`linii.${idx}.unitate_masura`, normalizeazaUm(v))
+                            }
                           />
                         </Table.Td>
                         <Table.Td>
@@ -532,6 +575,7 @@ export function ComandaEditor(): React.JSX.Element {
                             size="xs"
                             min={0}
                             decimalScale={2}
+                            decimalSeparator=","
                             hideControls
                             key={form.key(`linii.${idx}.cost_lei`)}
                             {...form.getInputProps(`linii.${idx}.cost_lei`)}
@@ -542,6 +586,7 @@ export function ComandaEditor(): React.JSX.Element {
                             size="xs"
                             min={0}
                             decimalScale={2}
+                            decimalSeparator=","
                             hideControls
                             key={form.key(`linii.${idx}.pret_lei`)}
                             {...form.getInputProps(`linii.${idx}.pret_lei`)}
@@ -648,6 +693,8 @@ export function ComandaEditor(): React.JSX.Element {
                       placeholder="0,00"
                       min={0}
                       decimalScale={2}
+                      decimalSeparator=","
+
                       value={plataLei}
                       onChange={setPlataLei}
                       style={{ flex: 1 }}

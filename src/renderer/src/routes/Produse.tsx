@@ -31,12 +31,14 @@ import { mesajEroare } from '../lib/erori'
 import { baniToLei, leiToBani } from '../lib/money'
 import { formatLei } from '../lib/format'
 import { TVA_SELECT_DATA } from '../lib/tva'
+import { UM_SELECT_DATA, etichetaUm, normalizeazaUm } from '@shared/um'
 import { useSetari } from '../lib/useSetari'
 
 interface ProdusForm {
   nume: string
   descriere: string
   unitate_masura: string
+  cost_lei: number | string
   pret_lei: number | string
   cota_tva: number
   track_stock: boolean
@@ -49,6 +51,7 @@ const EMPTY: ProdusForm = {
   nume: '',
   descriere: '',
   unitate_masura: 'buc',
+  cost_lei: '',
   pret_lei: '',
   cota_tva: 21,
   track_stock: false,
@@ -76,6 +79,16 @@ export function Produse(): React.JSX.Element {
   useEffect(() => {
     window.api.furnizori.list().then(setFurnizori)
   }, [])
+
+  // Marja apare imediat sub cele două casete: cel mai rapid mod de a observa
+  // că valorile au fost scrise invers (cost mai mare decât prețul => marjă negativă).
+  const marjaProcent = useMemo(() => {
+    const cost = Number(form.values.cost_lei)
+    const pret = Number(form.values.pret_lei)
+    if (form.values.cost_lei === '' || form.values.pret_lei === '' || !(pret > 0)) return null
+    if (!Number.isFinite(cost) || !Number.isFinite(pret)) return null
+    return ((pret - cost) / pret) * 100
+  }, [form.values.cost_lei, form.values.pret_lei])
 
   // Deschide direct fișa produsului venind din căutarea globală (?edit=<id>).
   useEffect(() => {
@@ -118,7 +131,8 @@ export function Produse(): React.JSX.Element {
     const vals: ProdusForm = {
       nume: p.nume,
       descriere: p.descriere ?? '',
-      unitate_masura: p.unitate_masura,
+      unitate_masura: normalizeazaUm(p.unitate_masura),
+      cost_lei: p.cost_referinta != null ? baniToLei(p.cost_referinta) : '',
       pret_lei: p.pret_referinta != null ? baniToLei(p.pret_referinta) : '',
       cota_tva: p.cota_tva,
       track_stock: p.track_stock,
@@ -135,7 +149,8 @@ export function Produse(): React.JSX.Element {
     const payload: ProdusInput = {
       nume: values.nume.trim(),
       descriere: nullify(values.descriere),
-      unitate_masura: values.unitate_masura.trim() || 'buc',
+      unitate_masura: normalizeazaUm(values.unitate_masura),
+      cost_referinta: values.cost_lei === '' ? null : leiToBani(Number(values.cost_lei)),
       pret_referinta: values.pret_lei === '' ? null : leiToBani(Number(values.pret_lei)),
       cota_tva: Number(values.cota_tva),
       track_stock: values.track_stock,
@@ -208,7 +223,8 @@ export function Produse(): React.JSX.Element {
                 <Table.Tr>
                   <Table.Th>Nume</Table.Th>
                   <Table.Th>U.M.</Table.Th>
-                  <Table.Th ta="right">Preț referință</Table.Th>
+                  <Table.Th ta="right">Cost</Table.Th>
+                  <Table.Th ta="right">Preț vânzare</Table.Th>
                   <Table.Th ta="center">TVA</Table.Th>
                   <Table.Th ta="right">Stoc</Table.Th>
                   <Table.Th>Furnizor</Table.Th>
@@ -225,7 +241,12 @@ export function Produse(): React.JSX.Element {
                       <Table.Td onClick={() => openEdit(p)}>
                         <Text fw={500}>{p.nume}</Text>
                       </Table.Td>
-                      <Table.Td onClick={() => openEdit(p)}>{p.unitate_masura}</Table.Td>
+                      <Table.Td onClick={() => openEdit(p)}>
+                        {etichetaUm(p.unitate_masura)}
+                      </Table.Td>
+                      <Table.Td ta="right" onClick={() => openEdit(p)}>
+                        {p.cost_referinta != null ? formatLei(p.cost_referinta) : '—'}
+                      </Table.Td>
                       <Table.Td ta="right" onClick={() => openEdit(p)}>
                         {p.pret_referinta != null ? formatLei(p.pret_referinta) : '—'}
                       </Table.Td>
@@ -300,7 +321,13 @@ export function Produse(): React.JSX.Element {
             <TextInput label="Nume" withAsterisk {...form.getInputProps('nume')} />
             <Textarea label="Descriere" autosize minRows={2} {...form.getInputProps('descriere')} />
             <Group grow>
-              <TextInput label="Unitate de măsură" {...form.getInputProps('unitate_masura')} />
+              <Select
+                label="Unitate de măsură"
+                data={UM_SELECT_DATA}
+                allowDeselect={false}
+                value={normalizeazaUm(form.values.unitate_masura)}
+                onChange={(v) => form.setFieldValue('unitate_masura', normalizeazaUm(v))}
+              />
               <Select
                 label="Cotă TVA"
                 data={TVA_SELECT_DATA}
@@ -309,15 +336,33 @@ export function Produse(): React.JSX.Element {
                 allowDeselect={false}
               />
             </Group>
-            <NumberInput
-              label="Preț de referință (lei)"
-              description="Orientativ — prețul real se pune pe linia comenzii."
-              decimalScale={2}
-              fixedDecimalScale
-              min={0}
-              suffix=" lei"
-              {...form.getInputProps('pret_lei')}
-            />
+            <Group grow align="flex-start">
+              <NumberInput
+                label="Cost de achiziție (lei)"
+                description="Cât plătești TU pe unitate."
+                decimalScale={2}
+                fixedDecimalScale
+                decimalSeparator=","
+                min={0}
+                suffix=" lei"
+                {...form.getInputProps('cost_lei')}
+              />
+              <NumberInput
+                label="Preț de vânzare (lei)"
+                description="Cât încasezi de la client."
+                decimalScale={2}
+                fixedDecimalScale
+                decimalSeparator=","
+                min={0}
+                suffix=" lei"
+                {...form.getInputProps('pret_lei')}
+              />
+            </Group>
+            {marjaProcent != null && (
+              <Text size="xs" c={marjaProcent >= 0 ? 'teal.7' : 'red.7'}>
+                Marjă la aceste valori: {marjaProcent.toFixed(1)}%
+              </Text>
+            )}
             <Select
               label="Furnizor"
               placeholder="Fără furnizor"

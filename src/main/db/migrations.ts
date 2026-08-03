@@ -183,5 +183,37 @@ export const MIGRATIONS: Migration[] = [
       CREATE INDEX IF NOT EXISTS idx_comenzi_data           ON comenzi(data_creare);
       CREATE INDEX IF NOT EXISTS idx_achizitii_data         ON achizitii(data);
     `
+  },
+  {
+    version: 3,
+    nume: 'cost_produs_si_unitati',
+    sql: /* sql */ `
+      -- Produsul avea un singur câmp de bani („preț de referință”), deși în
+      -- realitate are două valori diferite: cât plătim noi pe el și cât cerem
+      -- pe el. Fără primul, caseta „Cost” de pe linia comenzii se putea umple
+      -- doar din istoricul achizițiilor — gol pentru majoritatea produselor.
+      ALTER TABLE produse ADD COLUMN cost_referinta INTEGER;
+
+      -- Unitățile de măsură devin o listă fixă (buc / mp / ml). Textul liber de
+      -- până acum se normalizează, altfel dropdownul s-ar deschide gol pe
+      -- înregistrările vechi.
+      UPDATE produse SET unitate_masura = CASE
+        WHEN LOWER(REPLACE(REPLACE(unitate_masura, ' ', ''), '.', '')) IN ('mp','m2','metrupatrat') THEN 'mp'
+        WHEN LOWER(REPLACE(REPLACE(unitate_masura, ' ', ''), '.', '')) IN ('ml','m','metruliniar')  THEN 'ml'
+        ELSE 'buc'
+      END;
+
+      UPDATE linii_comanda SET unitate_masura = CASE
+        WHEN LOWER(REPLACE(REPLACE(unitate_masura, ' ', ''), '.', '')) IN ('mp','m2','metrupatrat') THEN 'mp'
+        WHEN LOWER(REPLACE(REPLACE(unitate_masura, ' ', ''), '.', '')) IN ('ml','m','metruliniar')  THEN 'ml'
+        ELSE 'buc'
+      END;
+
+      UPDATE linii_achizitie SET unitate_masura = CASE
+        WHEN LOWER(REPLACE(REPLACE(unitate_masura, ' ', ''), '.', '')) IN ('mp','m2','metrupatrat') THEN 'mp'
+        WHEN LOWER(REPLACE(REPLACE(unitate_masura, ' ', ''), '.', '')) IN ('ml','m','metruliniar')  THEN 'ml'
+        ELSE 'buc'
+      END;
+    `
   }
 ]

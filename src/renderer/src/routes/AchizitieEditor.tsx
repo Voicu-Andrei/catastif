@@ -24,6 +24,7 @@ import { modals } from '@mantine/modals'
 import { useNavigate, useParams } from 'react-router-dom'
 import { IconArrowLeft, IconCirclePlus, IconDeviceFloppy, IconTrash } from '@tabler/icons-react'
 import type { AchizitieDetaliu, AchizitieInput, Furnizor, Produs } from '@shared/types'
+import { UM_SELECT_DATA, normalizeazaUm } from '@shared/um'
 import { baniToLei, leiToBani } from '../lib/money'
 import { formatLei } from '../lib/format'
 import { mesajEroare } from '../lib/erori'
@@ -133,9 +134,12 @@ export function AchizitieEditor(): React.JSX.Element {
     if (!p) return
     const cur = form.getValues().linii[idx]
     if (!cur.descriere.trim()) form.setFieldValue(`linii.${idx}.descriere`, p.nume)
-    form.setFieldValue(`linii.${idx}.unitate_masura`, p.unitate_masura)
-    if (p.ultim_cost != null && (cur.cost_lei === '' || Number(cur.cost_lei) === 0)) {
-      form.setFieldValue(`linii.${idx}.cost_lei`, baniToLei(p.ultim_cost))
+    form.setFieldValue(`linii.${idx}.unitate_masura`, normalizeazaUm(p.unitate_masura))
+    // Aici totul este cost de achiziție: preferăm costul din fișa produsului și
+    // cădem pe ultimul cost plătit efectiv doar dacă fișa nu are unul.
+    const cost = p.cost_referinta ?? p.ultim_cost
+    if (cost != null && (cur.cost_lei === '' || Number(cur.cost_lei) === 0)) {
+      form.setFieldValue(`linii.${idx}.cost_lei`, baniToLei(cost))
     }
   }
 
@@ -150,7 +154,7 @@ export function AchizitieEditor(): React.JSX.Element {
         produs_id: l.produs_id ? Number(l.produs_id) : null,
         descriere: l.descriere.trim(),
         cantitate: Number(l.cantitate || 0),
-        unitate_masura: l.unitate_masura || 'buc',
+        unitate_masura: normalizeazaUm(l.unitate_masura),
         cost_unitar: leiToBani(Number(l.cost_lei || 0)),
         data: form.values.data
       }))
@@ -284,12 +288,13 @@ export function AchizitieEditor(): React.JSX.Element {
               </Button>
             </Group>
             <ScrollArea>
-              <Table verticalSpacing="xs" horizontalSpacing="xs" miw={680}>
+              <Table verticalSpacing="xs" horizontalSpacing="xs" miw={790}>
                 <Table.Thead>
                   <Table.Tr>
                     <Table.Th style={{ minWidth: 280 }}>Descriere</Table.Th>
                     <Table.Th w={90}>Cant.</Table.Th>
-                    <Table.Th w={120}>Cost/buc</Table.Th>
+                    <Table.Th w={90}>U.M.</Table.Th>
+                    <Table.Th w={120}>Cost unitar</Table.Th>
                     <Table.Th w={120} ta="right">
                       Subtotal
                     </Table.Th>
@@ -326,9 +331,21 @@ export function AchizitieEditor(): React.JSX.Element {
                           <NumberInput
                             size="xs"
                             min={0}
+                            decimalSeparator=","
                             hideControls
                             key={form.key(`linii.${idx}.cantitate`)}
                             {...form.getInputProps(`linii.${idx}.cantitate`)}
+                          />
+                        </Table.Td>
+                        <Table.Td>
+                          <Select
+                            size="xs"
+                            data={UM_SELECT_DATA}
+                            allowDeselect={false}
+                            value={normalizeazaUm(linii[idx].unitate_masura)}
+                            onChange={(v) =>
+                              form.setFieldValue(`linii.${idx}.unitate_masura`, normalizeazaUm(v))
+                            }
                           />
                         </Table.Td>
                         <Table.Td>
@@ -336,6 +353,7 @@ export function AchizitieEditor(): React.JSX.Element {
                             size="xs"
                             min={0}
                             decimalScale={2}
+                            decimalSeparator=","
                             hideControls
                             key={form.key(`linii.${idx}.cost_lei`)}
                             {...form.getInputProps(`linii.${idx}.cost_lei`)}
