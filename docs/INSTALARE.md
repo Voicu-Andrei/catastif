@@ -105,14 +105,33 @@ din meniul **Setări** (stânga jos):
 
 ## Actualizările vin singure
 
-Nu trebuie să reinstalezi nimic niciodată. Când pornești aplicația, ea verifică singură dacă a
-apărut o versiune nouă. Dacă da, îți apare o fereastră cu trei opțiuni:
+Nu trebuie să reinstalezi nimic niciodată. Aplicația verifică singură dacă a apărut o versiune nouă
+— la pornire și apoi din când în când, dacă o ții deschisă mult timp.
 
-- **Da, actualizează** — descarcă versiunea nouă și o instalează.
-- **Nu** — te întreabă din nou data viitoare.
-- **Nu pentru această versiune** — sare peste această versiune, dar te anunță la următoarea.
+Când găsește una, apare o fereastră cu trei opțiuni:
 
-Actualizarea păstrează toate datele tale. Nu se șterge nimic.
+- **Da, actualizează** — începe descărcarea (vezi mai jos).
+- **Mai târziu** — te întreabă din nou data viitoare.
+- **Nu pentru această versiune** — sare peste ea, dar te anunță la următoarea.
+
+În timpul descărcării vezi o bară de progres și **poți lucra mai departe** — nu se închide nimic.
+Dacă descărcarea se blochează (internet slab, rețea de firmă), apeși **Renunță la descărcare** și
+încerci altă dată.
+
+Când descărcarea s-a terminat, tu alegi momentul:
+
+- **Repornește acum** — aplicația se închide, se actualizează și pornește la loc.
+- **La următoarea închidere** — continui ce făceai, iar actualizarea se instalează singură când
+  închizi aplicația.
+
+> Aplicația **nu se închide niciodată singură**, sub mâna ta. Dacă ai ceva nesalvat, alege „La
+> următoarea închidere”, salvează liniștit, apoi închide.
+
+**Actualizarea păstrează toate datele tale.** Produsele, clienții, comenzile, atașamentele și
+setările rămân exact unde sunt — actualizarea schimbă doar programul, nu evidența firmei.
+
+În **Setări → Actualizări** vezi ce versiune ai instalată, poți verifica manual cu **Verifică acum**
+și poți anula un „Nu pentru această versiune” dat din greșeală.
 
 ---
 
@@ -142,6 +161,7 @@ Dacă vrei să ștergi și datele, șterge manual folderul `Catastif` din:
 | Apare „nu ai drepturi de administrator” | Alege instalarea **doar pentru mine**, nu pentru toți utilizatorii |
 | Nu găsesc fișierul descărcat | Este în folderul **Descărcări**; sau apasă `Ctrl+J` în browser |
 | Vreau aplicația pe încă un calculator | Repetă pașii 1–4 acolo. Datele nu se sincronizează automat — mută-le cu **Backup → Restaurează** |
+| Cineva îmi cere „jurnalul” aplicației | Scrie `%APPDATA%\catastif` în bara de adrese din Explorer și trimite fișierul `catastif.log` |
 
 ---
 
