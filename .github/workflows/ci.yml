@@ -8,7 +8,13 @@ on:
 
 jobs:
   verifica:
-    runs-on: ubuntu-latest
+    # Aplicația rulează în principal pe Windows, așa că verificăm și acolo:
+    # căile, sfârșiturile de linie și modulele native se comportă diferit.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
 
@@ -29,5 +35,7 @@ jobs:
       - name: Verifică formatarea
         run: npm run format:check
 
+      # `npm test` rulează întâi `pretest`, care recompilează better-sqlite3
+      # pentru Node (postinstall îl compilase pentru Electron — alt ABI).
       - name: Rulează testele
         run: npm test

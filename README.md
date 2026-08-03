@@ -8,6 +8,12 @@ calculatorul proprietarului; fără cont, fără cloud, fără server.
 > Interfața este integral în limba română. Toate datele stau într-un singur fișier SQLite, cu
 > backup/restaurare cu un clic.
 
+## Instalare
+
+Nu vrei să compilezi nimic? **[Ghidul de instalare pas cu pas »](docs/INSTALARE.md)** — descarci un
+singur fișier de pe pagina [Releases](https://github.com/Voicu-Andrei/catastif/releases/latest) și
+dai câteva clicuri. Fără linie de comandă, fără drepturi de administrator.
+
 ## Stadiu (etape de dezvoltare)
 
 - **M0 — schelet + backup** ✅ shell Mantine în română, SQLite cu migrații, Setări, backup/restaurare.
