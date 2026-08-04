@@ -138,7 +138,7 @@ REAL (`21`, not `0.21`).
 ## 4. Data model
 
 Schema lives inline in TypeScript at `src/main/db/migrations.ts`, versioned via SQLite's
-`PRAGMA user_version`. **Current version: 3.** Migrations run in order, each in its own transaction
+`PRAGMA user_version`. **Current version: 4.** Migrations run in order, each in its own transaction
 (`src/main/db/migrate.ts:15-28`). `PRAGMA foreign_keys = ON` is set at connection time
 (`src/main/db/connection.ts:70-71`) — without it every `ON DELETE` rule below would be inert.
 
@@ -224,6 +224,10 @@ landed in the price box regardless of what the user meant by it. v3 split them
 | `total_fara_tva`, `total_tva`, `total` | **bani, persisted** (denormalised from lines) |
 | `achitat` | **bani, persisted** (denormalised from `plati`) |
 | `observatii` | free text, printed on the PDF |
+| `data_montaj` | `YYYY-MM-DD` NULL — scheduled installation day *(v4)* |
+| `adresa_montaj` | TEXT NULL — installation address when it differs from the customer's *(v4)* |
+| `detalii_montaj` | TEXT NULL — **internal** crew note, never printed *(v4)* |
+| `montaj_finalizat_la` | TEXT NULL — recorded fact, written only via its own channel *(v4)* |
 | `factura_id` | **dead column** — no FK, never written |
 
 **Numbering:** if the user leaves the number blank, after INSERT it becomes `'C' + id` zero-padded to
@@ -365,6 +369,49 @@ All operations run in a transaction and return the **re-read** order; if it vani
 *"Comanda nu mai există."* The client never constructs state locally.
 
 ---
+
+### 5.1 Installation (montaj) — an orthogonal axis, not a fourth state
+
+A rolling-shutter business sells *and fits*. Installation is tracked on a **second axis**, independent
+of `stare`: an order can be confirmed-and-not-yet-fitted, confirmed-and-fitted, or cancelled
+regardless of whether it was ever fitted.
+
+**It is deliberately NOT a fourth value in `stare`.** `stare` has no CHECK constraint, so an unknown
+value would not error — it would silently vanish from the seven `stare='comanda'` predicates in
+`rapoarte.ts` and `dashboard.ts`, taking that order's revenue out of the annual report. Of the ~127
+references to `stare`, exactly **one** (`lib/stare.ts`, a `Record<StareComanda, …>`) is caught by the
+compiler; the rest are SQL string literals invisible to any type-checker. The three commercial states
+are also strictly one-way, whereas an installation gets **rescheduled** — modelling a rescheduleable
+event as a monotonic state machine is a category error.
+
+**`stare_montaj` is derived in SQL** (`repos/comenzi.ts`, in `LIST_SQL`), never stored:
+
+| Value | Condition |
+|---|---|
+| `nespecificat` | `stare <> 'comanda'` — **must be the first branch** |
+| `montat` | `montaj_finalizat_la IS NOT NULL` |
+| `neprogramat` | no `data_montaj` |
+| `intarziat` | `data_montaj < date('now','localtime')` |
+| `programat` | otherwise |
+
+That first branch is load-bearing: without it a **cancelled** order with a past date would wear a red
+"Întârziat" badge forever, and a quote with a pencilled-in date would read "Programat" — both
+contradicting the dashboard tiles, which correctly filter on `stare='comanda'`.
+
+**Completion is a recorded fact, not an inference.** "The date passed" does not mean "it happened" —
+installations slip constantly. `montaj_finalizat_la` is written only through
+`comenzi:marcheazaMontat`, guarded to `stare='comanda'`, and is deliberately **absent from the
+`UPDATE` statement** in `updateComanda`, so saving an order can never erase it.
+
+**The money for installation is an ordinary line**, fed by a seeded `Montaj` catalogue product
+(`track_stock=0`, so `ajusteazaStoc` ignores it by construction). It therefore gets cost, price, its
+own VAT rate, margin, a row on the PDF, and inclusion in every report **with no new code** — and the
+"persisted totals == sum of lines" invariant is preserved. A `pret_montaj` column would have been
+erased silently on the next save, because `updateComanda` recomputes totals wholly from the lines.
+
+> ⚠️ Keep the `Montaj` product at `track_stock=0`. Because it will appear on nearly every order, it
+> is the row most exposed to gap 2 in §13: ticking that box would make every accept/cancel cycle
+> fabricate stock.
 
 ## 6. Feature inventory
 
@@ -536,6 +583,7 @@ by the backend (to persist totals), the browser (live preview), and the PDF gene
 | `rest_de_plata` | `total − achitat` | SQL |
 | `ultim_cost` | last purchase line cost | SQL subquery, per row |
 | `stoc scăzut` | `stoc_curent <= COALESCE(prag_stoc, default)` | SQL **and** browser (duplicated) |
+| `stare_montaj` | see §5.1 | SQL, in `LIST_SQL` |
 | `marjaProcent` | `(price − cost) / price × 100` | browser only, display feedback |
 | `client_nume`, `furnizor_nume`, `nr_linii` | JOINs / COUNT subqueries | SQL |
 | activity `titlu` / `link` | string building | **backend JS** |
@@ -656,6 +704,12 @@ no numbering, no order→invoice link. Nothing has ever written to that table.
 e-Factura system later; the app **must never handle the user's ANAF credentials**. The fiscal fields
 already collected (company CUI/Reg. Com./address/IBAN; customer CUI/CNP/address) exist for this.
 
+**Also absent (montaj):** one installation per order — no second address, no multi-day fitting, no
+warranty revisit; no installer/team assignment (who goes is written in `detalii_montaj`); no
+reschedule history (the date is overwritten); no calendar view; and **no gate** blocking final
+payment or invoicing until installation is marked done. That last one is a genuine open question —
+see the note at the end of §13.
+
 **Also absent:** multi-currency (`moneda` defaults to `'RON'` and is never used), any user/permission
 model, any audit trail, any stock-movement journal, supplier returns or credit notes, and pagination.
 
@@ -713,6 +767,15 @@ matter for a rewrite:
 19. **Units have no conversion factors** — you cannot buy in `ml` and sell in `buc`; stock adds up
     quantitatively regardless of unit, with no guard.
 20. **Settings are not validated at all** server-side.
+
+### One open question for the owner
+
+The brief said *"they need a montaj phase, and then if everything is okay, they go on."* That **may**
+mean a gate: final payment (and later, invoicing) blocked until installation is marked complete. No
+gate was built, because any such rule re-couples installation to the commercial axis and erodes the
+independence the whole design rests on. If a gate is wanted, the gentle version — a warning beside
+the payment box when installation isn't marked done, with no hard block — sits on top of the existing
+predicate and needs no schema change.
 
 ---
 

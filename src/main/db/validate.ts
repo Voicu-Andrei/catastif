@@ -46,6 +46,17 @@ function cereLinieIdentificabila(
   }
 }
 
+const RE_DATA = /^\d{4}-\d{2}-\d{2}$/
+
+// Dată opțională: lipsa ei este perfect validă (o comandă fără montaj programat).
+// Un câmp de formular golit ajunge aici ca șir gol, nu ca null — și „gol” tot
+// „neprogramat” înseamnă, nu „dată greșită”.
+function cereDataOptionala(v: unknown, mesaj: string): void {
+  if (v == null) return
+  if (typeof v === 'string' && v.trim() === '') return
+  if (typeof v !== 'string' || !RE_DATA.test(v)) throw new Error(mesaj)
+}
+
 function valideazaLinieComanda(l: LinieComandaInput, idx: number): void {
   const ctx = `Linia ${idx + 1}`
   cereLinieIdentificabila(l, ctx)
@@ -56,6 +67,10 @@ function valideazaLinieComanda(l: LinieComandaInput, idx: number): void {
 }
 
 export function valideazaComanda(input: ComandaInput): void {
+  cereDataOptionala(
+    input.data_montaj,
+    'Data montajului nu este validă (format așteptat: AAAA-LL-ZZ).'
+  )
   if (!Array.isArray(input.linii) || input.linii.length === 0) {
     throw new Error('Comanda trebuie să aibă cel puțin o linie.')
   }

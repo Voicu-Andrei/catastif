@@ -139,16 +139,35 @@ function comandaHtml(s: Setari, c: ComandaDetaliu, client: Client | null): strin
          <tr><td>Rest de plată</td><td class="r">${lei(c.rest_de_plata)}</td></tr>`
       : ''
 
+  // Data montajului ajunge pe documentul clientului — el trebuie să citească de
+  // pe hârtia primită când vine echipa. Pe o comandă anulată o ascundem
+  // (lucrarea nu mai are loc), dar un montaj deja efectuat rămâne: e un fapt.
+  const randMontaj =
+    c.data_montaj && c.stare !== 'anulata' ? `<br/>Montaj: ${dataRo(c.data_montaj)}` : ''
+  const randMontajEfectuat = c.montaj_finalizat_la
+    ? `<br/>Montaj efectuat: ${dataRo(c.montaj_finalizat_la)}`
+    : ''
+  // `detalii_montaj` NU apare niciodată aici: e nota internă a echipei
+  // („etaj 4, fără lift, cheia la vecin”), nu informație pentru client.
+  const casetaAdresaMontaj = c.adresa_montaj
+    ? `<div class="box" style="flex:1"><div class="muted" style="margin-bottom:4px">Adresa de montaj</div>${esc(
+        c.adresa_montaj
+      )}</div>`
+    : ''
+
   return `<!doctype html><html lang="ro"><head><meta charset="utf-8"><style>${STIL}</style></head><body>
     <div class="row" style="align-items:flex-start">
       ${antet(s)}
       <div style="text-align:right">
         <h1>${titlu}</h1>
-        <div class="muted">Nr. ${esc(c.numar ?? '#' + c.id)}<br/>Data: ${dataRo(c.data_creare)}</div>
+        <div class="muted">Nr. ${esc(c.numar ?? '#' + c.id)}<br/>Data: ${dataRo(
+          c.data_creare
+        )}${randMontaj}${randMontajEfectuat}</div>
       </div>
     </div>
     <div class="row" style="margin-top:18px">
       <div class="box" style="flex:1"><div class="muted" style="margin-bottom:4px">Cumpărător</div>${cumparator}</div>
+      ${casetaAdresaMontaj}
     </div>
     <table>
       <thead><tr>

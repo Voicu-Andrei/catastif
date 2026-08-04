@@ -44,6 +44,8 @@ const api: CatastifApi = {
     accepta: (id) => ipcRenderer.invoke('comenzi:accepta', id),
     anuleaza: (id) => ipcRenderer.invoke('comenzi:anuleaza', id),
     plata: (id, suma) => ipcRenderer.invoke('comenzi:plata', id, suma),
+    marcheazaMontat: (id, finalizat) =>
+      ipcRenderer.invoke('comenzi:marcheazaMontat', id, finalizat),
     delete: (id) => ipcRenderer.invoke('comenzi:delete', id)
   },
   achizitii: {

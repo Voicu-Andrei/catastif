@@ -129,12 +129,15 @@ describe('migrația v3', () => {
       pret_referinta: number
     }[]
 
+    // Ne uităm doar la produsele existente înainte de migrații — v4 mai semănă
+    // unul, „Montaj”, verificat separat în tests/montaj.test.ts.
+    const vechi = produse.filter((p) => p.nume !== 'Montaj')
     // Unitățile ajung pe lista fixă...
-    expect(produse.map((p) => p.unitate_masura)).toEqual(['mp', 'ml'])
+    expect(vechi.map((p) => p.unitate_masura)).toEqual(['mp', 'ml'])
     // ...prețul de vânzare rămâne neatins (nu îl mutăm în cost)...
-    expect(produse.map((p) => p.pret_referinta)).toEqual([50000, 3000])
+    expect(vechi.map((p) => p.pret_referinta)).toEqual([50000, 3000])
     // ...iar costul pornește gol, de completat de utilizator.
-    expect(produse.map((p) => p.cost_referinta)).toEqual([null, null])
+    expect(vechi.map((p) => p.cost_referinta)).toEqual([null, null])
 
     const linie = db.prepare('SELECT unitate_masura FROM linii_comanda').get() as {
       unitate_masura: string

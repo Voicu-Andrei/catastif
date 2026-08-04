@@ -48,7 +48,12 @@ describe('datele supraviețuiesc actualizării aplicației', () => {
 
     expect(versiuneSchemaFisier(db)).toBe(versiuneSchemaAplicatie())
     expect(db.prepare('SELECT nume FROM clienti').pluck().all()).toEqual(['Ana Pop'])
-    expect(db.prepare('SELECT nume FROM produse').pluck().all()).toEqual(['Fereastră PVC'])
+    // Produsul introdus de utilizator rămâne neatins; „Montaj” este rândul
+    // semănat de migrația v4, prin care intră banii manoperei.
+    expect(db.prepare('SELECT nume FROM produse ORDER BY id').pluck().all()).toEqual([
+      'Fereastră PVC',
+      'Montaj'
+    ])
   })
 
   it('lasă o copie de siguranță înainte de a atinge schema', () => {

@@ -215,5 +215,54 @@ export const MIGRATIONS: Migration[] = [
         ELSE 'buc'
       END;
     `
+  },
+  {
+    version: 4,
+    nume: 'montaj',
+    sql: /* sql */ `
+      -- Faza de montaj, împărțită deliberat după criteriul „bani vs. programare”.
+      --
+      -- BANII montajului trec prin linii_comanda, ca orice altă linie (vezi
+      -- produsul „Montaj” semănat mai jos). Așa primesc gratuit cost, preț, cotă
+      -- TVA proprie, profit, poziție în PDF și toate rapoartele — iar invariantul
+      -- „totalurile persistate = suma liniilor” rămâne intact. O coloană
+      -- pret_montaj ar fi fost ștearsă tăcut la următoarea salvare, fiindcă
+      -- updateComanda recalculează totalurile integral din linii.
+      --
+      -- PROGRAMAREA stă pe capul comenzii, pentru că este o proprietate a
+      -- deplasării, nu a unui rând: se merge o dată, într-o zi, la o adresă.
+      -- Coloanele de mai jos sunt INERTE — niciun agregat de bani nu le citește.
+
+      -- Ziua în care se merge la montaj (AAAA-LL-ZZ, introdusă de utilizator, ca
+      -- achizitii.data). NU datetime('now'): un montaj se petrece într-o zi de
+      -- calendar, iar scrierea în UTC ar arăta ziua greșită lângă miezul nopții.
+      ALTER TABLE comenzi ADD COLUMN data_montaj TEXT;
+
+      -- Unde se montează, când diferă de adresa clientului (proprietar vs. imobil).
+      -- Până acum nu exista nicio adresă pe comandă.
+      ALTER TABLE comenzi ADD COLUMN adresa_montaj TEXT;
+
+      -- Instrucțiuni INTERNE pentru echipă (etaj, lift, acces, cine deschide).
+      -- Separat de observatii, care se tipărește pe documentul clientului.
+      ALTER TABLE comenzi ADD COLUMN detalii_montaj TEXT;
+
+      -- Faptul, nu planul. „Data a trecut” nu înseamnă „s-a făcut” — montajele se
+      -- amână. Se scrie doar prin comenzi:marcheazaMontat.
+      ALTER TABLE comenzi ADD COLUMN montaj_finalizat_la TEXT;
+
+      CREATE INDEX IF NOT EXISTS idx_comenzi_data_montaj ON comenzi(data_montaj);
+
+      -- Produsul prin care intră banii montajului. Semănat aici ca descrierile să
+      -- nu derive („Montaj” / „Montare rulouri” / „Manoperă”), altfel niciun
+      -- raport nu le-ar putea grupa vreodată.
+      -- track_stock=0 => ajusteazaStoc îl ignoră complet, prin construcție.
+      -- Costul și prețul rămân goale: le completează patronul din ecranul Produse.
+      INSERT INTO produse
+        (nume, descriere, unitate_masura, cost_referinta, pret_referinta,
+         cota_tva, track_stock, stoc_curent, prag_stoc)
+      SELECT 'Montaj', 'Manoperă de montaj la client', 'buc', NULL, NULL,
+             21, 0, 0, NULL
+      WHERE NOT EXISTS (SELECT 1 FROM produse WHERE nume = 'Montaj' COLLATE NOCASE);
+    `
   }
 ]
