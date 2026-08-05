@@ -278,9 +278,12 @@ export interface RaportData {
 
 export type ExportFormat = 'csv' | 'xlsx'
 
-export interface RezultatActualizare {
-  disponibila: boolean
-  versiune?: string
+// Rezultatul verificării manuale de actualizări (butonul din Setări).
+export interface RezultatVerificare {
+  stare: 'disponibila' | 'la_zi' | 'eroare' | 'dezvoltare'
+  versiuneCurenta: string
+  versiune?: string // versiunea disponibilă, când stare = 'disponibila'
+  mesaj?: string // detaliul erorii, când stare = 'eroare'
 }
 
 // ---------------------------------------------------------------------------
@@ -378,6 +381,10 @@ export interface CatastifApi {
   }
   update: {
     onAvailable(cb: (info: { version: string }) => void): () => void
+    /** Actualizarea deja găsită, dacă interfața s-a montat după anunț. */
+    pending(): Promise<{ version: string } | null>
+    /** Verificare la cerere, cu rezultat vizibil. */
+    check(): Promise<RezultatVerificare>
     respond(raspuns: 'da' | 'nu' | 'skip'): Promise<void>
   }
 }

@@ -4,7 +4,17 @@ import { Button, Group, Modal, Stack, Text } from '@mantine/core'
 export function UpdateNotifier(): React.JSX.Element {
   const [version, setVersion] = useState<string | null>(null)
 
-  useEffect(() => window.api.update.onAvailable(({ version }) => setVersion(version)), [])
+  useEffect(() => {
+    // Ascultăm anunțul…
+    const desubscrie = window.api.update.onAvailable(({ version }) => setVersion(version))
+    // …dar întrebăm și noi, în caz că verificarea s-a terminat înainte ca
+    // această componentă să existe. Altfel anunțul s-ar pierde definitiv.
+    window.api.update
+      .pending()
+      .then((info) => info && setVersion(info.version))
+      .catch(() => undefined)
+    return desubscrie
+  }, [])
 
   function respond(r: 'da' | 'nu' | 'skip'): void {
     window.api.update.respond(r)

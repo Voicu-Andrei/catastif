@@ -28,6 +28,7 @@ import {
   IconFolderOpen,
   IconAlertTriangle,
   IconPhoto,
+  IconRefresh,
   IconRestore,
   IconTrash
 } from '@tabler/icons-react'
@@ -65,6 +66,8 @@ export function Setari(): React.JSX.Element {
   const [resetDeschis, setResetDeschis] = useState(false)
   const [confirmare, setConfirmare] = useState('')
   const [seSterge, setSeSterge] = useState(false)
+  const [versiune, setVersiune] = useState('')
+  const [seVerifica, setSeVerifica] = useState(false)
   const form = useForm<TSetari>({ initialValues: INITIAL })
 
   useEffect(() => {
@@ -79,6 +82,10 @@ export function Setari(): React.JSX.Element {
       .logo()
       .then(setLogo)
       .catch(() => setLogo(null))
+    window.api.app
+      .getVersion()
+      .then(setVersiune)
+      .catch(() => setVersiune(''))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -106,6 +113,43 @@ export function Setari(): React.JSX.Element {
     } catch (err) {
       notifications.show({ color: 'red', title: 'Eroare', message: mesajEroare(err) })
       setSeSterge(false)
+    }
+  }
+
+  async function verificaActualizari(): Promise<void> {
+    setSeVerifica(true)
+    try {
+      const r = await window.api.update.check()
+      if (r.stare === 'disponibila') {
+        notifications.show({
+          color: 'teal',
+          title: `Versiunea ${r.versiune} este disponibilă`,
+          message: 'Fereastra de actualizare se deschide imediat.'
+        })
+      } else if (r.stare === 'la_zi') {
+        notifications.show({
+          color: 'teal',
+          title: 'Ești la zi',
+          message: `Versiunea ${r.versiuneCurenta} este cea mai nouă.`
+        })
+      } else if (r.stare === 'dezvoltare') {
+        notifications.show({
+          color: 'gray',
+          title: 'Mod dezvoltare',
+          message: 'Actualizările funcționează doar în aplicația instalată.'
+        })
+      } else {
+        notifications.show({
+          color: 'red',
+          title: 'Verificarea a eșuat',
+          message: r.mesaj ?? 'Nu s-a putut contacta serverul de actualizări.',
+          autoClose: false
+        })
+      }
+    } catch (err) {
+      notifications.show({ color: 'red', title: 'Eroare', message: mesajEroare(err) })
+    } finally {
+      setSeVerifica(false)
     }
   }
 
@@ -372,6 +416,31 @@ export function Setari(): React.JSX.Element {
               onClick={confirmaRestaurare}
             >
               Restaurează din backup
+            </Button>
+          </Group>
+        </Paper>
+
+        {/* Versiune și actualizări */}
+        <Paper withBorder radius="lg" p="lg">
+          <Title order={4} mb="xs">
+            Versiune și actualizări
+          </Title>
+          <Group justify="space-between" align="center" wrap="wrap" gap="md">
+            <div>
+              <Text size="sm">
+                Versiunea instalată: <b>{versiune || '—'}</b>
+              </Text>
+              <Text size="xs" c="dimmed">
+                Aplicația verifică singură la fiecare pornire. Poți verifica și acum.
+              </Text>
+            </div>
+            <Button
+              variant="default"
+              leftSection={<IconRefresh size={18} />}
+              onClick={verificaActualizari}
+              loading={seVerifica}
+            >
+              Verifică actualizări
             </Button>
           </Group>
         </Paper>

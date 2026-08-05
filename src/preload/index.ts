@@ -86,6 +86,8 @@ const api: CatastifApi = {
       ipcRenderer.on('update:available', listener)
       return () => ipcRenderer.removeListener('update:available', listener)
     },
+    pending: () => ipcRenderer.invoke('update:pending'),
+    check: () => ipcRenderer.invoke('update:check'),
     respond: (raspuns) => ipcRenderer.invoke('update:response', raspuns)
   }
 }
