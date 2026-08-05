@@ -142,7 +142,7 @@ export function Dashboard(): React.JSX.Element {
           label="Oferte în așteptare"
           value={d ? String(d.oferte_in_asteptare) : null}
           icon={<IconFileText size={24} />}
-          color="grape"
+          color="indigo"
           onClick={() => navigate('/comenzi')}
         />
         <StatCard

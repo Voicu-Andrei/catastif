@@ -46,12 +46,12 @@ const STIL = `
   .box { border: 1px solid #e0e0e0; border-radius: 8px; padding: 12px 14px; }
   table { width: 100%; border-collapse: collapse; margin-top: 12px; }
   th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid #eee; }
-  th { background: #f5f7f7; font-weight: 600; }
+  th { background: #eef0f7; font-weight: 600; color: #172a6f; }
   td.r, th.r { text-align: right; }
   .totals { margin-top: 14px; width: 280px; margin-left: auto; }
   .totals td { border: none; padding: 3px 8px; }
   .grand { font-weight: 700; font-size: 14px; border-top: 1px solid #ccc; }
-  .brand { color: #00745e; font-weight: 700; }
+  .brand { color: #172a6f; font-weight: 700; }
   h2 { font-size: 15px; margin: 22px 0 0; }
 `
 

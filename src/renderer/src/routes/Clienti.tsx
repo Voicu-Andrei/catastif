@@ -196,7 +196,7 @@ export function Clienti(): React.JSX.Element {
                       <Text fw={500}>{c.nume}</Text>
                     </Table.Td>
                     <Table.Td onClick={() => openEdit(c)}>
-                      <Badge variant="light" color={c.tip === 'firma' ? 'blue' : 'grape'}>
+                      <Badge variant="light" color={c.tip === 'firma' ? 'blue' : 'indigo'}>
                         {c.tip === 'firma' ? 'Firmă' : 'Persoană'}
                       </Badge>
                     </Table.Td>

@@ -6,7 +6,7 @@ import type { EntitateTip, SearchResult } from '@shared/types'
 
 const TIP_META: Record<EntitateTip, { label: string; color: string }> = {
   produs: { label: 'Produs', color: 'brand' },
-  client: { label: 'Client', color: 'grape' },
+  client: { label: 'Client', color: 'indigo' },
   furnizor: { label: 'Furnizor', color: 'blue' },
   comanda: { label: 'Comandă', color: 'teal' },
   achizitie: { label: 'Achiziție', color: 'orange' }

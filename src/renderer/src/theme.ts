@@ -1,17 +1,19 @@
 import { createTheme, type MantineColorsTuple } from '@mantine/core'
 
-// Accent „catastif” — verde-petrol (vibe de registru/contabilitate), calm și profesional.
+// Accent „catastif” — bleumarinul din logo (#172a6f).
+// Nuanța 6 este exact culoarea logo-ului (butoane, meniu activ, insigne);
+// 0–5 sunt tente pentru fundaluri, 7–9 pentru hover și accente închise.
 const brand: MantineColorsTuple = [
-  '#e6fbf6',
-  '#d3f0e9',
-  '#a9dfd2',
-  '#7bcdba',
-  '#56bda6',
-  '#3fb399',
-  '#2fae92',
-  '#1d987e',
-  '#0c876f',
-  '#00745e'
+  '#f3f4f8',
+  '#e3e5ee',
+  '#c7ccdc',
+  '#a7aec8',
+  '#848eb3',
+  '#566496',
+  '#172a6f',
+  '#14245f',
+  '#111e50',
+  '#0d1840'
 ]
 
 export const theme = createTheme({

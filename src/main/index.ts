@@ -29,7 +29,7 @@ function createWindow(): void {
     show: false,
     autoHideMenuBar: true,
     title: 'Catastif',
-    backgroundColor: '#f6f8f8',
+    backgroundColor: '#f7f7f7',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,

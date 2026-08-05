@@ -6,7 +6,8 @@ body,
 }
 
 body {
-  background: var(--mantine-color-gray-0);
+  /* Aceeași pânză neutră ca fundalul logo-ului. */
+  background: #f7f7f7;
 }
 
 .stat-card:hover {
@@ -17,7 +18,7 @@ body {
   transition: background 0.1s ease;
 }
 .activity-row:hover {
-  background: var(--mantine-color-gray-1);
+  background: var(--mantine-color-brand-0);
 }
 
 /* Scroll mai discret pentru aspectul de aplicație desktop */
