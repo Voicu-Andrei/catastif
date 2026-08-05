@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react'
 import {
+  Alert,
   Box,
   Button,
+  Code,
   Divider,
   Group,
+  Modal,
   LoadingOverlay,
   NumberInput,
   Paper,
@@ -23,6 +26,7 @@ import {
   IconDownload,
   IconFolder,
   IconFolderOpen,
+  IconAlertTriangle,
   IconPhoto,
   IconRestore,
   IconTrash
@@ -58,6 +62,9 @@ export function Setari(): React.JSX.Element {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [logo, setLogo] = useState<string | null>(null)
+  const [resetDeschis, setResetDeschis] = useState(false)
+  const [confirmare, setConfirmare] = useState('')
+  const [seSterge, setSeSterge] = useState(false)
   const form = useForm<TSetari>({ initialValues: INITIAL })
 
   useEffect(() => {
@@ -74,6 +81,33 @@ export function Setari(): React.JSX.Element {
       .catch(() => setLogo(null))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Acceptăm „STERGE", „sterge", „ȘTERGE" — fără să chinuim utilizatorul cu diacritice.
+  const confirmareValida =
+    confirmare
+      .trim()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toUpperCase() === 'STERGE'
+
+  async function stergeTot(): Promise<void> {
+    setSeSterge(true)
+    try {
+      const copie = await window.api.setari.resetBaza()
+      notifications.show({
+        color: 'teal',
+        title: 'Datele au fost șterse',
+        message: `O copie de siguranță a rămas în: ${copie}`,
+        autoClose: false
+      })
+      setResetDeschis(false)
+      // Reîncărcăm interfața ca toate ecranele să pornească de la zero.
+      setTimeout(() => window.location.reload(), 1200)
+    } catch (err) {
+      notifications.show({ color: 'red', title: 'Eroare', message: mesajEroare(err) })
+      setSeSterge(false)
+    }
+  }
 
   async function alegeLogo(): Promise<void> {
     try {
@@ -341,7 +375,66 @@ export function Setari(): React.JSX.Element {
             </Button>
           </Group>
         </Paper>
+
+        {/* Zonă periculoasă */}
+        <Paper withBorder radius="lg" p="lg" style={{ borderColor: 'var(--mantine-color-red-3)' }}>
+          <Title order={4} mb="xs" c="red.8">
+            Pornește de la zero
+          </Title>
+          <Text size="sm" c="dimmed" mb="md">
+            Șterge toate înregistrările — produse, clienți, furnizori, oferte, comenzi, achiziții,
+            plăți și fișierele atașate. Datele firmei de mai sus (nume, CUI, adresă, logo, folder de
+            backup) rămân neatinse. Util după perioada de probă, ca să începi cu registre curate.
+          </Text>
+          <Button
+            color="red"
+            variant="light"
+            leftSection={<IconAlertTriangle size={18} />}
+            onClick={() => {
+              setConfirmare('')
+              setResetDeschis(true)
+            }}
+          >
+            Șterge toate datele
+          </Button>
+        </Paper>
       </Stack>
+
+      <Modal
+        opened={resetDeschis}
+        onClose={() => !seSterge && setResetDeschis(false)}
+        title="Șterge toate datele"
+        centered
+      >
+        <Stack gap="md">
+          <Alert color="red" icon={<IconAlertTriangle size={18} />}>
+            Se șterg definitiv toate produsele, clienții, furnizorii, ofertele, comenzile,
+            achizițiile, plățile și fișierele atașate.
+          </Alert>
+          <Text size="sm">
+            Înainte de ștergere, aplicația salvează automat o copie completă a datelor actuale, ca
+            să se poată reveni dacă ai apăsat din greșeală.
+          </Text>
+          <Text size="sm">
+            Pentru confirmare, scrie cuvântul <Code>STERGE</Code> în casetă:
+          </Text>
+          <TextInput
+            value={confirmare}
+            onChange={(e) => setConfirmare(e.currentTarget.value)}
+            placeholder="STERGE"
+            autoFocus
+            data-autofocus
+          />
+          <Group justify="flex-end" gap="sm">
+            <Button variant="default" onClick={() => setResetDeschis(false)} disabled={seSterge}>
+              Renunță
+            </Button>
+            <Button color="red" onClick={stergeTot} disabled={!confirmareValida} loading={seSterge}>
+              Șterge definitiv
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
     </form>
   )
 }

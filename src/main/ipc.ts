@@ -11,6 +11,7 @@ import { getRapoarte } from './db/repos/rapoarte'
 import { exportTabel } from './export'
 import { generatePdfComanda, generatePdfRaport } from './pdf'
 import { alegeLogo, logoDataUri, stergeLogo } from './logo'
+import { resetBaza } from './db/reset'
 
 function winFrom(e: Electron.IpcMainInvokeEvent): BrowserWindow | undefined {
   return BrowserWindow.fromWebContents(e.sender) ?? undefined
@@ -50,6 +51,7 @@ export function registerIpc(): void {
   ipcMain.handle('setari:logo', () => logoDataUri())
   ipcMain.handle('setari:alegeLogo', (e) => alegeLogo(winFrom(e)))
   ipcMain.handle('setari:stergeLogo', () => stergeLogo())
+  ipcMain.handle('setari:resetBaza', () => resetBaza())
 
   // --- Backup ---
   ipcMain.handle('backup:chooseFolder', async (e): Promise<string | null> => {

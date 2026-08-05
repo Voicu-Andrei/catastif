@@ -299,6 +299,11 @@ export interface CatastifApi {
     /** Deschide un selector de imagine; întoarce noul logo ca data:URI. */
     alegeLogo(): Promise<string | null>
     stergeLogo(): Promise<void>
+    /**
+     * Golește toate registrele (păstrează datele firmei). Face întâi o copie
+     * de siguranță și întoarce calea acesteia.
+     */
+    resetBaza(): Promise<string>
   }
   backup: {
     exportNow(): Promise<BackupResult>
