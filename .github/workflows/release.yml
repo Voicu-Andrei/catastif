@@ -7,6 +7,9 @@ on:
   push:
     tags:
       - 'v*'
+  # Permite pornirea manuală din tab-ul Actions, fără terminal. (Butonul „Run
+  # workflow” apare doar dacă acest fișier există și pe branch-ul implicit.)
+  workflow_dispatch:
 
 permissions:
   contents: write

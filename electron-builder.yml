@@ -47,3 +47,8 @@ publish:
   provider: github
   owner: voicu-andrei
   repo: catastif
+  # OBLIGATORIU. Implicit electron-builder creează un release „draft”, adică
+  # invizibil public: linkul .../releases/latest/download/... ar da 404, iar
+  # actualizarea automată nu ar găsi nimic, până când cineva apasă manual
+  # „Publish release” pe GitHub. Cu „release” lansarea e publică direct.
+  releaseType: release
