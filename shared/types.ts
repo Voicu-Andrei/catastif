@@ -20,7 +20,7 @@ export interface Setari {
   iban: string
   telefon: string
   email: string
-  logo_path: string | null
+  logo_path: string | null // cale relativă în folderul de atașamente
   cota_tva_implicita: number // ex. 21
   serie_factura: string
   numar_factura_curent: number
@@ -294,6 +294,11 @@ export interface CatastifApi {
   setari: {
     get(): Promise<Setari>
     save(patch: Partial<Setari>): Promise<Setari>
+    /** Logo-ul firmei ca data:URI, pentru previzualizare. */
+    logo(): Promise<string | null>
+    /** Deschide un selector de imagine; întoarce noul logo ca data:URI. */
+    alegeLogo(): Promise<string | null>
+    stergeLogo(): Promise<void>
   }
   backup: {
     exportNow(): Promise<BackupResult>

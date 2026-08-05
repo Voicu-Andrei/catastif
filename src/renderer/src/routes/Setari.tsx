@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import {
+  Box,
   Button,
   Divider,
   Group,
@@ -22,7 +23,9 @@ import {
   IconDownload,
   IconFolder,
   IconFolderOpen,
-  IconRestore
+  IconPhoto,
+  IconRestore,
+  IconTrash
 } from '@tabler/icons-react'
 import type { Setari as TSetari } from '@shared/types'
 import { PageHeader } from '../components/Placeholder'
@@ -54,6 +57,7 @@ const INITIAL: TSetari = {
 export function Setari(): React.JSX.Element {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [logo, setLogo] = useState<string | null>(null)
   const form = useForm<TSetari>({ initialValues: INITIAL })
 
   useEffect(() => {
@@ -64,8 +68,29 @@ export function Setari(): React.JSX.Element {
         form.resetDirty(s)
       })
       .finally(() => setLoading(false))
+    window.api.setari
+      .logo()
+      .then(setLogo)
+      .catch(() => setLogo(null))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  async function alegeLogo(): Promise<void> {
+    try {
+      setLogo(await window.api.setari.alegeLogo())
+    } catch (err) {
+      notifications.show({ color: 'red', title: 'Eroare', message: mesajEroare(err) })
+    }
+  }
+
+  async function stergeLogo(): Promise<void> {
+    try {
+      await window.api.setari.stergeLogo()
+      setLogo(null)
+    } catch (err) {
+      notifications.show({ color: 'red', title: 'Eroare', message: mesajEroare(err) })
+    }
+  }
 
   async function handleSubmit(values: TSetari): Promise<void> {
     setSaving(true)
@@ -172,6 +197,62 @@ export function Setari(): React.JSX.Element {
             <TextInput label="Telefon" {...form.getInputProps('telefon')} />
             <TextInput label="Email" {...form.getInputProps('email')} />
           </SimpleGrid>
+        </Paper>
+
+        {/* Logo */}
+        <Paper withBorder radius="lg" p="lg">
+          <Title order={4} mb="xs">
+            Logo
+          </Title>
+          <Text size="sm" c="dimmed" mb="md">
+            Apare în antetul ofertelor și comenzilor tipărite. Dacă nu alegi niciun logo, se
+            folosește numele firmei. Fișierul este copiat în aplicație și intră în backup.
+          </Text>
+          <Group align="center" gap="lg" wrap="wrap">
+            <Box
+              style={{
+                width: 220,
+                height: 88,
+                border: '1px dashed var(--mantine-color-gray-4)',
+                borderRadius: 'var(--mantine-radius-md)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 8,
+                background: 'var(--mantine-color-white)'
+              }}
+            >
+              {logo ? (
+                <img
+                  src={logo}
+                  alt="Logo firmă"
+                  style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+                />
+              ) : (
+                <Text size="xs" c="dimmed">
+                  Niciun logo ales
+                </Text>
+              )}
+            </Box>
+            <Stack gap="xs">
+              <Button variant="default" leftSection={<IconPhoto size={18} />} onClick={alegeLogo}>
+                {logo ? 'Schimbă logo' : 'Alege logo'}
+              </Button>
+              {logo && (
+                <Button
+                  variant="subtle"
+                  color="red"
+                  leftSection={<IconTrash size={18} />}
+                  onClick={stergeLogo}
+                >
+                  Elimină
+                </Button>
+              )}
+              <Text size="xs" c="dimmed" maw={260}>
+                PNG, JPG, GIF, WEBP sau SVG. Ideal: fundal transparent, minim 400 px lățime.
+              </Text>
+            </Stack>
+          </Group>
         </Paper>
 
         {/* TVA și facturare */}

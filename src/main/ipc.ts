@@ -10,6 +10,7 @@ import { listFisiere, attachFisiere, openFisier, deleteFisier } from './files'
 import { getRapoarte } from './db/repos/rapoarte'
 import { exportTabel } from './export'
 import { generatePdfComanda, generatePdfRaport } from './pdf'
+import { alegeLogo, logoDataUri, stergeLogo } from './logo'
 
 function winFrom(e: Electron.IpcMainInvokeEvent): BrowserWindow | undefined {
   return BrowserWindow.fromWebContents(e.sender) ?? undefined
@@ -46,6 +47,9 @@ export function registerIpc(): void {
   // --- Setări ---
   ipcMain.handle('setari:get', () => getSetari())
   ipcMain.handle('setari:save', (_e, patch: Partial<Setari>) => saveSetari(patch))
+  ipcMain.handle('setari:logo', () => logoDataUri())
+  ipcMain.handle('setari:alegeLogo', (e) => alegeLogo(winFrom(e)))
+  ipcMain.handle('setari:stergeLogo', () => stergeLogo())
 
   // --- Backup ---
   ipcMain.handle('backup:chooseFolder', async (e): Promise<string | null> => {

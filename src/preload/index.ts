@@ -7,7 +7,10 @@ const api: CatastifApi = {
   },
   setari: {
     get: () => ipcRenderer.invoke('setari:get'),
-    save: (patch) => ipcRenderer.invoke('setari:save', patch)
+    save: (patch) => ipcRenderer.invoke('setari:save', patch),
+    logo: () => ipcRenderer.invoke('setari:logo'),
+    alegeLogo: () => ipcRenderer.invoke('setari:alegeLogo'),
+    stergeLogo: () => ipcRenderer.invoke('setari:stergeLogo')
   },
   backup: {
     exportNow: () => ipcRenderer.invoke('backup:exportNow'),
