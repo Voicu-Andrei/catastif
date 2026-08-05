@@ -11,12 +11,17 @@ on:
 permissions:
   contents: write
 
+# Deocamdată se publică DOAR instalatorul de Windows.
+# macOS este scos intenționat: build-ul ar fi complet nesemnat, iar macOS
+# refuză să pornească o aplicație nesemnată pe procesoarele Apple (M1–M4) —
+# utilizatorul ar descărca un fișier care nu se deschide. Se readaugă
+# `macos-latest` în matrice după ce rezolvăm semnarea.
 jobs:
   release:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, macos-latest]
+        os: [windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
