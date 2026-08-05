@@ -20,7 +20,10 @@ npmRebuild: true
 win:
   target:
     - nsis
-  artifactName: ${productName}-Setup-${version}.${ext}
+  # Nume FĂRĂ versiune, intenționat: astfel linkul „ultima versiune” de pe
+  # GitHub rămâne mereu același și poate fi dat o singură dată utilizatorului:
+  # https://github.com/Voicu-Andrei/catastif/releases/latest/download/Catastif-Setup.exe
+  artifactName: ${productName}-Setup.${ext}
 
 nsis:
   oneClick: false
