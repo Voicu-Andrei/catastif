@@ -12,6 +12,13 @@ on:
   push:
     tags:
       - 'v*'
+      # Și tagurile scrise fără „v” (0.5.0). Ele NU vor trece de verificarea de
+      # mai jos — dar asta e tocmai ideea: un tag greșit trebuie să eșueze
+      # zgomotos, cu un mesaj care spune ce să corectezi. Înainte, un tag fără
+      # „v” nu declanșa absolut nimic: niciun build, nicio eroare, doar tăcere,
+      # iar `releases/latest` rămânea un release gol care strica descărcarea și
+      # actualizarea automată pentru toți.
+      - '[0-9]*'
   # Permite pornirea manuală din tab-ul Actions, fără terminal. (Butonul „Run
   # workflow” apare doar dacă acest fișier există și pe branch-ul implicit.)
   workflow_dispatch:
@@ -51,7 +58,16 @@ jobs:
           versiune="v$(node -p "require('./package.json').version")"
           if [ "$versiune" != "$GITHUB_REF_NAME" ]; then
             echo "Tagul împins ($GITHUB_REF_NAME) nu corespunde versiunii din package.json ($versiune)."
-            echo "Actualizează 'version' în package.json, apoi refă tagul."
+            case "$GITHUB_REF_NAME" in
+              [0-9]*)
+                echo ""
+                echo "Tagul nu începe cu litera «v». Numele corect este: $versiune"
+                echo "Șterge release-ul și tagul «$GITHUB_REF_NAME», apoi refă-l ca «$versiune»."
+                ;;
+              *)
+                echo "Actualizează 'version' în package.json, apoi refă tagul."
+                ;;
+            esac
             exit 1
           fi
           echo "Versiune confirmată: $versiune"
