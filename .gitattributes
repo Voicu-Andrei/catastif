@@ -1,0 +1,11 @@
+# Toate fișierele text se păstrează cu terminații LF, pe orice sistem.
+#
+# Fără asta, Windows scoate fișierele din git cu CRLF, iar Prettier — care
+# așteaptă LF — le declară pe toate greșit formatate. Verificarea din CI pica
+# pe Windows la fiecare push, cu „Code style issues found in 82 files”, deși
+# fișierele erau în regulă. O plasă de siguranță mereu roșie nu mai prinde
+# nimic: te obișnuiești să ignori roșul.
+#
+# `text=auto` lasă git să distingă singur textul de binar, deci imaginile
+# (build/icon.png) rămân neatinse.
+* text=auto eol=lf
