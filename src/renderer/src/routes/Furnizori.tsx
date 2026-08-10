@@ -24,6 +24,7 @@ import { PageHeader, ComingSoon, EroareIncarcare, ListaSkeleton } from '../compo
 import { ListToolbar } from '../components/ListToolbar'
 import { FileAttachments } from '../components/FileAttachments'
 import { useList } from '../lib/useList'
+import { decalaj } from '../lib/animatie'
 import { mesajEroare } from '../lib/erori'
 
 const EMPTY: FurnizorInput = {
@@ -171,8 +172,12 @@ export function Furnizori(): React.JSX.Element {
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
-                {filtered.map((f) => (
-                  <Table.Tr key={f.id} style={{ cursor: 'pointer' }}>
+                {filtered.map((f, i) => (
+                  <Table.Tr
+                    key={f.id}
+                    className="apare-lin"
+                    style={{ cursor: 'pointer', ...decalaj(i) }}
+                  >
                     <Table.Td onClick={() => openEdit(f)}>
                       <Text fw={500}>{f.nume}</Text>
                     </Table.Td>

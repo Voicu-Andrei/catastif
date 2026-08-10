@@ -27,6 +27,7 @@ import { PageHeader, ComingSoon, EroareIncarcare, ListaSkeleton } from '../compo
 import { ListToolbar } from '../components/ListToolbar'
 import { FileAttachments } from '../components/FileAttachments'
 import { useList } from '../lib/useList'
+import { decalaj } from '../lib/animatie'
 import { mesajEroare } from '../lib/erori'
 import { baniToLei, leiToBani } from '../lib/money'
 import { formatLei } from '../lib/format'
@@ -232,12 +233,16 @@ export function Produse(): React.JSX.Element {
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
-                {filtered.map((p) => {
+                {filtered.map((p, i) => {
                   const stocScazut =
                     p.track_stock &&
                     p.stoc_curent <= (p.prag_stoc ?? setari?.prag_stoc_implicit ?? 0)
                   return (
-                    <Table.Tr key={p.id} style={{ cursor: 'pointer' }}>
+                    <Table.Tr
+                      key={p.id}
+                      className="apare-lin"
+                      style={{ cursor: 'pointer', ...decalaj(i) }}
+                    >
                       <Table.Td onClick={() => openEdit(p)}>
                         <Text fw={500}>{p.nume}</Text>
                       </Table.Td>

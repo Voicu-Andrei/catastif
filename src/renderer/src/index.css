@@ -10,15 +10,99 @@ body {
   background: #f7f7f7;
 }
 
+/* ---------------------------------------------------------------------------
+   Mișcare
+   Reguli: durate scurte (sub 260 ms), doar `opacity` și `transform` (singurele
+   pe care placa video le poate anima fără să recalculeze pagina), și decelerare
+   la final — nimic nu sare, nimic nu se întoarce. Aplicația e folosită zilnic,
+   ore în șir; o animație care se remarcă a doua oară e o animație greșită.
+--------------------------------------------------------------------------- */
+
+:root {
+  --ease-iesire: cubic-bezier(0.22, 1, 0.36, 1);
+  --durata-scurta: 140ms;
+  --durata: 220ms;
+}
+
+@keyframes catastif-apare {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes catastif-estompare {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Intrare cu ridicare — pentru carduri și blocuri mari. Decalajul se dă prin
+   `--i` din JSX, ca elementele să curgă unul după altul, nu toate deodată. */
+.apare {
+  animation: catastif-apare var(--durata) var(--ease-iesire) both;
+  animation-delay: calc(var(--i, 0) * 45ms);
+}
+
+/* Intrare doar prin opacitate — pentru rândurile de tabel. Fără deplasare:
+   rândurile reapar la fiecare filtrare, iar o mișcare repetată ar obosi. */
+.apare-lin {
+  animation: catastif-estompare var(--durata-scurta) ease-out both;
+  animation-delay: calc(var(--i, 0) * 22ms);
+}
+
+/* Rânduri de tabel: fundal la trecerea cursorului, fără salt. */
+.mantine-Table-tr {
+  transition: background-color var(--durata-scurta) ease;
+}
+
+.stat-card {
+  transition:
+    transform var(--durata-scurta) var(--ease-iesire),
+    box-shadow var(--durata-scurta) var(--ease-iesire);
+}
 .stat-card:hover {
   box-shadow: var(--mantine-shadow-md);
   transform: translateY(-2px);
 }
+
 .activity-row {
-  transition: background 0.1s ease;
+  transition: background-color var(--durata-scurta) ease;
 }
 .activity-row:hover {
   background: var(--mantine-color-brand-0);
+}
+
+/* Apăsarea unui buton coboară imperceptibil — confirmare tactilă, nu efect. */
+button:not(:disabled):active {
+  transform: scale(0.985);
+}
+button {
+  transition: transform var(--durata-scurta) var(--ease-iesire);
+}
+
+/* ---------------------------------------------------------------------------
+   Respectăm setarea de sistem „mai puțină mișcare”. Windows: Setări →
+   Accesibilitate → Efecte vizuale → Efecte de animație. Pentru cine o oprește,
+   interfața devine instantanee — nu mai lentă, ci fără mișcare deloc.
+--------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* Scroll mai discret pentru aspectul de aplicație desktop */

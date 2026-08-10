@@ -173,6 +173,18 @@ describe('statisticile ignoră comenzile anulate', () => {
     expect(getRapoarte(anCurent).de_incasat.length).toBe(0)
   })
 
+  it('activitatea recentă nu mai arată comenzile anulate', () => {
+    const buna = createComanda(comanda({ numar: 'C-BUNA' }))
+    acceptaComanda(buna.id)
+    const rea = createComanda(comanda({ numar: 'C-REA' }))
+    anuleazaComanda(rea.id)
+
+    const titluri = getDashboard().activitate.map((a) => a.titlu)
+    expect(titluri.some((t) => t.includes('C-BUNA'))).toBe(true)
+    expect(titluri.some((t) => t.includes('C-REA'))).toBe(false)
+    expect(titluri.some((t) => t.includes('anulat'))).toBe(false)
+  })
+
   it('o ofertă neacceptată nu intră în vânzări sau profit', () => {
     createComanda(comanda())
     const d = getDashboard()

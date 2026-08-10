@@ -6,6 +6,7 @@ import type { AchizitieCuExtra } from '@shared/types'
 import { PageHeader, ComingSoon, EroareIncarcare, ListaSkeleton } from '../components/Placeholder'
 import { ListToolbar } from '../components/ListToolbar'
 import { useList } from '../lib/useList'
+import { decalaj } from '../lib/animatie'
 import { formatLei, formatData } from '../lib/format'
 
 export function Achizitii(): React.JSX.Element {
@@ -58,10 +59,11 @@ export function Achizitii(): React.JSX.Element {
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
-                {filtered.map((a) => (
+                {filtered.map((a, i) => (
                   <Table.Tr
                     key={a.id}
-                    style={{ cursor: 'pointer' }}
+                    className="apare-lin"
+                    style={{ cursor: 'pointer', ...decalaj(i) }}
                     onClick={() => navigate(`/achizitii/${a.id}`)}
                   >
                     <Table.Td>{formatData(a.data)}</Table.Td>

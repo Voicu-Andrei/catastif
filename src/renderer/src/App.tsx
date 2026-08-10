@@ -1,5 +1,5 @@
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
-import { AnimatePresence, motion } from 'framer-motion'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { Shell } from './components/AppShell'
 import { Dashboard } from './routes/Dashboard'
 import { Produse } from './routes/Produse'
@@ -16,6 +16,9 @@ import { UpdateNotifier } from './components/UpdateNotifier'
 
 export function App(): React.JSX.Element {
   const location = useLocation()
+  // Cine a oprit animațiile din sistem primește schimbarea de pagină instant,
+  // fără glisare — la fel ca restul interfeței (vezi index.css).
+  const fataMiscare = useReducedMotion()
 
   return (
     <Shell>
@@ -23,10 +26,10 @@ export function App(): React.JSX.Element {
       <AnimatePresence mode="wait">
         <motion.div
           key={location.pathname}
-          initial={{ opacity: 0, y: 10 }}
+          initial={{ opacity: 0, y: fataMiscare ? 0 : 10 }}
           animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -8 }}
-          transition={{ duration: 0.18, ease: 'easeOut' }}
+          exit={{ opacity: 0, y: fataMiscare ? 0 : -8 }}
+          transition={{ duration: fataMiscare ? 0 : 0.18, ease: 'easeOut' }}
         >
           <Routes location={location}>
             <Route path="/" element={<Dashboard />} />

@@ -58,8 +58,11 @@ export function getDashboard(): DashboardData {
 
   const comenzi = db
     .prepare(
+      // Comenzile anulate nu apar: tabloul de bord arată ce e în lucru, nu
+      // ce a fost șters din drum. Istoricul lor rămâne în pagina Comenzi.
       `SELECT c.id, c.numar, c.stare, c.total, c.creat_la, cl.nume AS client_nume
        FROM comenzi c LEFT JOIN clienti cl ON cl.id = c.client_id
+       WHERE c.stare != 'anulata'
        ORDER BY c.creat_la DESC LIMIT 6`
     )
     .all() as RandComandaRec[]
@@ -74,7 +77,7 @@ export function getDashboard(): DashboardData {
   const activitate: ActivitateItem[] = [
     ...comenzi.map<ActivitateItem>((c) => ({
       tip: c.stare,
-      titlu: `${c.stare === 'oferta' ? 'Ofertă' : c.stare === 'anulata' ? 'Comandă anulată' : 'Comandă'} ${
+      titlu: `${c.stare === 'oferta' ? 'Ofertă' : 'Comandă'} ${
         c.numar ?? '#' + c.id
       }${c.client_nume ? ' — ' + c.client_nume : ''}`,
       data: c.creat_la,

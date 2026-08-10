@@ -25,6 +25,7 @@ import { PageHeader, ComingSoon, EroareIncarcare, ListaSkeleton } from '../compo
 import { ListToolbar } from '../components/ListToolbar'
 import { FileAttachments } from '../components/FileAttachments'
 import { useList } from '../lib/useList'
+import { decalaj } from '../lib/animatie'
 import { mesajEroare } from '../lib/erori'
 
 const EMPTY: ClientInput = {
@@ -190,8 +191,12 @@ export function Clienti(): React.JSX.Element {
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
-                {filtered.map((c) => (
-                  <Table.Tr key={c.id} style={{ cursor: 'pointer' }}>
+                {filtered.map((c, i) => (
+                  <Table.Tr
+                    key={c.id}
+                    className="apare-lin"
+                    style={{ cursor: 'pointer', ...decalaj(i) }}
+                  >
                     <Table.Td onClick={() => openEdit(c)}>
                       <Text fw={500}>{c.nume}</Text>
                     </Table.Td>

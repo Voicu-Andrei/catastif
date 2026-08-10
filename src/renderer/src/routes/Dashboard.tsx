@@ -24,6 +24,7 @@ import {
 import type { ReactNode } from 'react'
 import type { DashboardData } from '@shared/types'
 import { PageHeader, EroareIncarcare } from '../components/Placeholder'
+import { decalaj } from '../lib/animatie'
 import { mesajEroare } from '../lib/erori'
 import { formatLei, formatData } from '../lib/format'
 import { STARE_META } from '../lib/stare'
@@ -36,6 +37,8 @@ interface StatProps {
   hint?: string
   onClick?: () => void
   dezactivat?: boolean
+  /** Poziția în grilă — dă decalajul intrării. */
+  pozitie?: number
 }
 
 function StatCard({
@@ -45,13 +48,15 @@ function StatCard({
   color = 'brand',
   hint,
   onClick,
-  dezactivat
+  dezactivat,
+  pozitie = 0
 }: StatProps): React.JSX.Element {
   return (
     <UnstyledButton
       onClick={onClick}
       disabled={dezactivat || !onClick}
-      style={{ borderRadius: 'var(--mantine-radius-lg)' }}
+      className="apare"
+      style={{ borderRadius: 'var(--mantine-radius-lg)', ...decalaj(pozitie) }}
     >
       <Paper
         withBorder
@@ -59,8 +64,7 @@ function StatCard({
         p="lg"
         style={{
           opacity: dezactivat ? 0.6 : 1,
-          cursor: onClick && !dezactivat ? 'pointer' : 'default',
-          transition: 'transform .12s ease, box-shadow .12s ease'
+          cursor: onClick && !dezactivat ? 'pointer' : 'default'
         }}
         className="stat-card"
       >
@@ -127,6 +131,7 @@ export function Dashboard(): React.JSX.Element {
 
       <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="lg">
         <StatCard
+          pozitie={0}
           label="De încasat"
           value={d ? formatLei(d.de_incasat) : null}
           icon={<IconCash size={24} />}
@@ -134,6 +139,7 @@ export function Dashboard(): React.JSX.Element {
           onClick={() => navigate('/comenzi')}
         />
         <StatCard
+          pozitie={1}
           label="Comenzi active"
           value={d ? String(d.comenzi_active) : null}
           icon={<IconClipboardList size={24} />}
@@ -141,6 +147,7 @@ export function Dashboard(): React.JSX.Element {
           onClick={() => navigate('/comenzi')}
         />
         <StatCard
+          pozitie={2}
           label="Oferte în așteptare"
           value={d ? String(d.oferte_in_asteptare) : null}
           icon={<IconFileText size={24} />}
@@ -148,6 +155,7 @@ export function Dashboard(): React.JSX.Element {
           onClick={() => navigate('/comenzi')}
         />
         <StatCard
+          pozitie={3}
           label="Profit (luna curentă)"
           value={d ? formatLei(d.profit_luna) : null}
           icon={<IconReportMoney size={24} />}
@@ -155,6 +163,7 @@ export function Dashboard(): React.JSX.Element {
           onClick={() => navigate('/rapoarte')}
         />
         <StatCard
+          pozitie={4}
           label="Stoc scăzut"
           value={d ? String(d.stoc_scazut) : null}
           icon={<IconPackages size={24} />}
@@ -162,6 +171,7 @@ export function Dashboard(): React.JSX.Element {
           onClick={() => navigate('/produse')}
         />
         <StatCard
+          pozitie={5}
           label="Montaje de făcut"
           value={d ? String(d.montaje_saptamana) : null}
           icon={<IconTool size={24} />}
@@ -170,6 +180,7 @@ export function Dashboard(): React.JSX.Element {
           onClick={() => navigate('/comenzi?montaj=de_facut')}
         />
         <StatCard
+          pozitie={6}
           label="Montaje întârziate"
           value={d ? String(d.montaje_intarziate) : null}
           icon={<IconAlertTriangle size={24} />}
@@ -178,6 +189,7 @@ export function Dashboard(): React.JSX.Element {
           onClick={() => navigate('/comenzi?montaj=intarziat')}
         />
         <StatCard
+          pozitie={7}
           label="Facturi de trimis la ANAF"
           value="—"
           icon={<IconSend size={24} />}
@@ -204,7 +216,12 @@ export function Dashboard(): React.JSX.Element {
         ) : (
           <Stack gap={4}>
             {d.activitate.map((a, i) => (
-              <UnstyledButton key={i} onClick={() => navigate(a.link)}>
+              <UnstyledButton
+                key={i}
+                onClick={() => navigate(a.link)}
+                className="apare-lin"
+                style={decalaj(i)}
+              >
                 <Group
                   justify="space-between"
                   wrap="nowrap"

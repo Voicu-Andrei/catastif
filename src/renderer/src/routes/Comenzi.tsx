@@ -18,6 +18,7 @@ import { formatLei, formatData } from '../lib/format'
 import { STARE_META } from '../lib/stare'
 import { MONTAJ_META } from '../lib/montaj'
 import { mesajEroare } from '../lib/erori'
+import { decalaj } from '../lib/animatie'
 
 type Filtru = 'toate' | StareComanda
 
@@ -122,12 +123,13 @@ export function Comenzi(): React.JSX.Element {
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
-                {filtered.map((c) => {
+                {filtered.map((c, i) => {
                   const meta = STARE_META[c.stare]
                   return (
                     <Table.Tr
                       key={c.id}
-                      style={{ cursor: 'pointer' }}
+                      className="apare-lin"
+                      style={{ cursor: 'pointer', ...decalaj(i) }}
                       onClick={() => navigate(`/comenzi/${c.id}`)}
                     >
                       <Table.Td>
