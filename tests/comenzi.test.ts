@@ -277,12 +277,12 @@ describe('deleteComanda', () => {
       linii: [linie(p.id, 3)]
     })
     acceptaComanda(c.id)
-    expect(() => deleteComanda(c.id)).toThrow(/anulează/)
+    expect(() => deleteComanda(c.id)).toThrow(/Anuleaz/)
     expect(getComanda(c.id)).toBeDefined()
     expect(getProdus(p.id)!.stoc_curent).toBe(7)
   })
 
-  it('refuză ștergerea unei comenzi anulate (istoric)', () => {
+  it('permite ștergerea definitivă a unei comenzi anulate', () => {
     const c = createComanda({
       numar: null,
       client_id: null,
@@ -290,6 +290,7 @@ describe('deleteComanda', () => {
       linii: [linie(null, 1)]
     })
     anuleazaComanda(c.id)
-    expect(() => deleteComanda(c.id)).toThrow()
+    expect(() => deleteComanda(c.id)).not.toThrow()
+    expect(getComanda(c.id)).toBeUndefined()
   })
 })

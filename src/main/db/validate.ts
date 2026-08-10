@@ -67,6 +67,7 @@ function valideazaLinieComanda(l: LinieComandaInput, idx: number): void {
 }
 
 export function valideazaComanda(input: ComandaInput): void {
+  cereDataOptionala(input.data, 'Data comenzii nu este validă (format așteptat: AAAA-LL-ZZ).')
   cereDataOptionala(
     input.data_montaj,
     'Data montajului nu este validă (format așteptat: AAAA-LL-ZZ).'

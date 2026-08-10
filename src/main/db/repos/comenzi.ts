@@ -119,6 +119,14 @@ function montajBind(input: ComandaInput): Record<string, string | null> {
   }
 }
 
+// Data aleasă în formular devine data comenzii. Păstrăm forma de „datetime”
+// a coloanei (ca rândurile vechi) adăugând ora curentă, ca ordonarea în
+// interiorul aceleiași zile să rămână cea reală.
+function dataCuOra(data: string): string {
+  const ora = new Date().toTimeString().slice(0, 8)
+  return `${data} ${ora}`
+}
+
 // Numărul e editabil de utilizator, deci trebuie verificat la salvare.
 function verificaNumarUnic(db: Database, numar: string | null, exceptaId?: number): void {
   if (!numar) return
@@ -137,9 +145,9 @@ export function createComanda(input: ComandaInput): ComandaDetaliu {
     const info = db
       .prepare(
         `INSERT INTO comenzi (numar, client_id, stare, total_fara_tva, total_tva, total, observatii,
-          data_montaj, adresa_montaj, detalii_montaj)
+          data_creare, data_montaj, adresa_montaj, detalii_montaj)
          VALUES (@numar, @client_id, 'oferta', @tf, @tt, @t, @obs,
-          @data_montaj, @adresa_montaj, @detalii_montaj)`
+          COALESCE(@data_creare, datetime('now')), @data_montaj, @adresa_montaj, @detalii_montaj)`
       )
       .run({
         numar: input.numar,
@@ -148,6 +156,7 @@ export function createComanda(input: ComandaInput): ComandaDetaliu {
         tt: t.total_tva,
         t: t.total,
         obs: input.observatii,
+        data_creare: input.data ? dataCuOra(input.data) : null,
         ...montajBind(input)
       })
     const id = Number(info.lastInsertRowid)
@@ -168,8 +177,8 @@ export function updateComanda(id: number, input: ComandaInput): ComandaDetaliu {
   const db = getDb()
   const t = calcComanda(toCalc(input.linii))
   const tx = db.transaction(() => {
-    const cur = db.prepare('SELECT stare FROM comenzi WHERE id=?').get(id) as
-      { stare: StareComanda } | undefined
+    const cur = db.prepare('SELECT stare, data_creare FROM comenzi WHERE id=?').get(id) as
+      { stare: StareComanda; data_creare: string } | undefined
     if (!cur) throw new Error('Comanda nu există.')
     if (cur.stare === 'anulata') {
       throw new Error('O comandă anulată nu poate fi modificată — rămâne în istoric.')
@@ -183,6 +192,7 @@ export function updateComanda(id: number, input: ComandaInput): ComandaDetaliu {
       // ca data_acceptare, nu un câmp de formular. O salvare a comenzii nu are
       // voie să șteargă înregistrarea că montajul s-a făcut.
       `UPDATE comenzi SET numar=@numar, client_id=@client_id, observatii=@obs,
+        data_creare=@data_creare,
         data_montaj=@data_montaj, adresa_montaj=@adresa_montaj,
         detalii_montaj=@detalii_montaj,
         total_fara_tva=@tf, total_tva=@tt, total=@t, actualizat_la=datetime('now')
@@ -192,6 +202,12 @@ export function updateComanda(id: number, input: ComandaInput): ComandaDetaliu {
       numar: input.numar,
       client_id: input.client_id,
       obs: input.observatii,
+      // Ora se rescrie doar dacă ziua chiar s-a schimbat; altfel păstrăm
+      // momentul original, ca ordonarea din aceeași zi să nu sară aiurea.
+      data_creare:
+        input.data && input.data !== cur.data_creare.slice(0, 10)
+          ? dataCuOra(input.data)
+          : cur.data_creare,
       ...montajBind(input),
       tf: t.total_fara_tva,
       tt: t.total_tva,
@@ -301,13 +317,18 @@ export function inregistreazaPlata(id: number, suma: number): ComandaDetaliu {
 
 // Ștergerea e permisă doar pentru oferte (schițe). O comandă confirmată a
 // mișcat stocul și face parte din istoric — ea se anulează, nu se șterge.
+// Se pot șterge definitiv doar ofertele (schițe) și comenzile ANULATE.
+// O comandă activă a mișcat stocul și e parte din istoricul viu: ea se anulează
+// întâi — moment în care stocul se restituie — și abia apoi poate fi ștearsă.
 export function deleteComanda(id: number): void {
   const db = getDb()
   const c = db.prepare('SELECT stare FROM comenzi WHERE id=?').get(id) as
     { stare: StareComanda } | undefined
   if (!c) return
-  if (c.stare !== 'oferta') {
-    throw new Error('Doar ofertele pot fi șterse. Comenzile se anulează și rămân în istoric.')
+  if (c.stare === 'comanda') {
+    throw new Error(
+      'O comandă activă nu poate fi ștearsă. Anuleaz-o întâi — apoi poate fi ștearsă definitiv.'
+    )
   }
   db.prepare('DELETE FROM comenzi WHERE id = ?').run(id)
 }

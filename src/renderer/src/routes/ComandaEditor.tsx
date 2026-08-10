@@ -59,10 +59,19 @@ interface LinieForm {
   cota_tva: number
 }
 
+const azi = (): string => {
+  const d = new Date()
+  const p = (n: number): string => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+}
+
 interface ComandaForm {
   numar: string
   client_id: string | null
   observatii: string
+  // Data comenzii. Implicit ziua curentă, dar se poate schimba — oferta se
+  // scrie adesea în aplicație la câteva zile după ce a fost dată clientului.
+  data: string
   // Programarea montajului. Șirul gol înseamnă necompletat; se convertește la
   // null în payload. `montaj_finalizat_la` NU este aici: e un fapt, marcat
   // printr-un canal propriu, ca să nu poată fi șters de o simplă salvare.
@@ -104,6 +113,7 @@ export function ComandaEditor(): React.JSX.Element {
       numar: '',
       client_id: null,
       observatii: '',
+      data: azi(),
       data_montaj: '',
       adresa_montaj: '',
       detalii_montaj: '',
@@ -132,6 +142,7 @@ export function ComandaEditor(): React.JSX.Element {
       numar: c.numar ?? '',
       client_id: c.client_id != null ? String(c.client_id) : null,
       observatii: c.observatii ?? '',
+      data: (c.data_creare ?? '').slice(0, 10) || azi(),
       data_montaj: c.data_montaj ?? '',
       adresa_montaj: c.adresa_montaj ?? '',
       detalii_montaj: c.detalii_montaj ?? '',
@@ -260,6 +271,7 @@ export function ComandaEditor(): React.JSX.Element {
     return {
       numar: form.values.numar.trim() || null,
       client_id: form.values.client_id ? Number(form.values.client_id) : null,
+      data: form.values.data.trim() || null,
       data_montaj: form.values.data_montaj.trim() || null,
       adresa_montaj: form.values.adresa_montaj.trim() || null,
       detalii_montaj: form.values.detalii_montaj.trim() || null,
@@ -353,9 +365,21 @@ export function ComandaEditor(): React.JSX.Element {
   }
 
   function confirmaStergere(): void {
+    const anulata = comanda?.stare === 'anulata'
     modals.openConfirmModal({
-      title: 'Șterge oferta',
-      children: <Text size="sm">Sigur ștergi această ofertă? Acțiunea nu poate fi anulată.</Text>,
+      title: anulata ? 'Șterge definitiv comanda' : 'Șterge oferta',
+      children: (
+        <Text size="sm">
+          {anulata ? (
+            <>
+              Comanda anulată <b>{comanda?.numar ?? ''}</b> va fi ștearsă definitiv din istoric,
+              împreună cu liniile, plățile și fișierele atașate. Acțiunea nu poate fi anulată.
+            </>
+          ) : (
+            'Sigur ștergi această ofertă? Acțiunea nu poate fi anulată.'
+          )}
+        </Text>
+      ),
       labels: { confirm: 'Șterge', cancel: 'Renunță' },
       confirmProps: { color: 'red' },
       onConfirm: async () => {
@@ -473,14 +497,14 @@ export function ComandaEditor(): React.JSX.Element {
               Acceptă (devine comandă)
             </Button>
           )}
-          {!esteNou && comanda?.stare === 'oferta' && (
+          {!esteNou && (comanda?.stare === 'oferta' || comanda?.stare === 'anulata') && (
             <Button
               variant="subtle"
               color="red"
               leftSection={<IconTrash size={18} />}
               onClick={confirmaStergere}
             >
-              Șterge
+              {comanda?.stare === 'anulata' ? 'Șterge definitiv' : 'Șterge'}
             </Button>
           )}
           {!esteNou && comanda?.stare === 'comanda' && (
@@ -531,7 +555,7 @@ export function ComandaEditor(): React.JSX.Element {
         <Grid.Col span={{ base: 12, lg: 8 }}>
           <Paper withBorder radius="lg" p="lg" mb="lg">
             <Grid>
-              <Grid.Col span={{ base: 12, sm: 8 }}>
+              <Grid.Col span={{ base: 12, sm: 5 }}>
                 <Select
                   label="Client"
                   placeholder="Alege client"
@@ -542,7 +566,15 @@ export function ComandaEditor(): React.JSX.Element {
                   clearable
                 />
               </Grid.Col>
-              <Grid.Col span={{ base: 12, sm: 4 }}>
+              <Grid.Col span={{ base: 6, sm: 4 }}>
+                <TextInput
+                  label="Data comenzii"
+                  type="date"
+                  description="Implicit ziua de azi"
+                  {...form.getInputProps('data')}
+                />
+              </Grid.Col>
+              <Grid.Col span={{ base: 6, sm: 3 }}>
                 <TextInput label="Număr" placeholder="automat" {...form.getInputProps('numar')} />
               </Grid.Col>
             </Grid>

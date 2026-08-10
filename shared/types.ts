@@ -151,6 +151,9 @@ export interface ComandaInput {
   numar: string | null
   client_id: number | null
   observatii: string | null
+  // Data comenzii (AAAA-LL-ZZ). Implicit ziua curentă, dar poate fi schimbată:
+  // ofertele se scriu adesea în aplicație la câteva zile după ce au fost date.
+  data?: string | null
   // Opționale: o comandă fără montaj le lasă pe toate deoparte.
   // `montaj_finalizat_la` NU face parte din formular — este un fapt, ca
   // data_acceptare, și se scrie doar prin comenzi:marcheazaMontat.
