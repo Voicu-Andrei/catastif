@@ -1,98 +1,280 @@
-import { app, ipcMain, type BrowserWindow } from 'electron'
-import { autoUpdater } from 'electron-updater'
+import { app, ipcMain, BrowserWindow } from 'electron'
+import { autoUpdater, CancellationToken } from 'electron-updater'
 import { getSetari, saveSetari } from './db/repos/setari'
-import type { RezultatVerificare } from '@shared/types'
+import { jurnal } from './log'
+import type { InfoActualizare, StareActualizare } from '@shared/types'
 
-let pendingVersion: string | null = null
-let ultimaEroare: string | null = null
-let fereastra: BrowserWindow | null = null
+// Verificarea la pornire + fluxul cu 3 opțiuni (Da / Nu / Nu pentru această versiune).
+//
+// Reguli care au stat la baza acestui fișier:
+//  - nimic nu se întâmplă în tăcere: fiecare fază ajunge în interfață, inclusiv
+//    erorile (altfel un utilizator rămâne pe o versiune veche fără să afle);
+//  - aplicația nu se închide niciodată sub mâna omului: instalarea se face doar
+//    după un „da” explicit dat DUPĂ ce descărcarea s-a terminat;
+//  - starea e păstrată aici, iar interfața o cere la montare — un renderer care
+//    pornește mai încet decât prima verificare nu pierde anunțul.
 
-// Trimite anunțul spre interfață DOAR după ce pagina e încărcată.
-// Fără asta, verificarea (rapidă, de rețea) se termina adesea înainte ca React
-// să apuce să monteze componenta care ascultă — mesajul se pierdea în gol și
-// fereastra de actualizare nu apărea niciodată.
-function anuntaRenderer(): void {
-  const win = fereastra
-  if (!win || win.isDestroyed() || !pendingVersion) return
-  const trimite = (): void => {
-    if (!win.isDestroyed() && pendingVersion) {
-      win.webContents.send('update:available', { version: pendingVersion })
-    }
-  }
-  if (win.webContents.isLoading()) win.webContents.once('did-finish-load', trimite)
-  else trimite()
+const INTERVAL_REVERIFICARE = 6 * 60 * 60 * 1000 // 6 ore
+const INTERVAL_SUPRAVEGHERE = 60 * 1000 // 1 minut
+const RABDARE_DESCARCARE = 10 * 60 * 1000 // 10 minute fără niciun progres
+
+let stare: StareActualizare = { faza: 'inactiv' }
+// Versiunea aflată în lucru (pentru eticheta de progres) și cea chiar ajunsă pe
+// disc sunt lucruri diferite: prima e cunoscută înainte de descărcare, a doua
+// dovedește că există un instalator de rulat.
+let versiuneInLucru: string | null = null
+let versiuneDescarcata: string | null = null
+let instalareInCurs = false
+let cronometru: NodeJS.Timeout | null = null
+let anulareDescarcare: CancellationToken | null = null
+let supraveghere: NodeJS.Timeout | null = null
+let ultimulProgres = 0
+
+// `before-quit` trebuie să sară peste backupul sincron când instalatorul NSIS
+// este deja pornit și așteaptă să închidă aplicația — altfel copierea e tăiată
+// la jumătate de `taskkill /F` și rămâne un backup incomplet, dar cu nume valid.
+export function instalareActualizareInCurs(): boolean {
+  return instalareInCurs
 }
 
-// Verificare la cerere (butonul din Setări). Spre deosebire de cea automată,
-// ignoră „sări peste această versiune" — utilizatorul a cerut explicit.
-export async function verificaActualizari(): Promise<RezultatVerificare> {
-  const versiuneCurenta = app.getVersion()
-  if (!app.isPackaged) {
-    return { stare: 'dezvoltare', versiuneCurenta }
-  }
-  ultimaEroare = null
+// Interfața primește întotdeauna tabloul complet, nu doar faza: altfel ar
+// trebui să deducă din formulare ce versiune e ignorată sau descărcată, iar
+// procesul principal le poate schimba pe la spatele ei.
+function info(): InfoActualizare {
+  let versiuneIgnorata: string | null = null
   try {
-    const rezultat = await autoUpdater.checkForUpdates()
-    if (rezultat?.isUpdateAvailable) {
-      pendingVersion = rezultat.updateInfo.version
-      anuntaRenderer()
-      return { stare: 'disponibila', versiuneCurenta, versiune: rezultat.updateInfo.version }
-    }
-    if (ultimaEroare) return { stare: 'eroare', versiuneCurenta, mesaj: ultimaEroare }
-    return { stare: 'la_zi', versiuneCurenta }
-  } catch (err) {
-    return { stare: 'eroare', versiuneCurenta, mesaj: (err as Error).message }
+    versiuneIgnorata = getSetari().versiune_ignorata
+  } catch {
+    // Baza poate fi indisponibilă (pornire eșuată, închidere în curs); starea
+    // actualizării trebuie să rămână utilizabilă oricum.
+  }
+  return { stare, versiuneIgnorata, versiuneDescarcata }
+}
+
+function setStare(nou: StareActualizare): void {
+  stare = nou
+  const payload = info()
+  for (const w of BrowserWindow.getAllWindows()) {
+    if (!w.isDestroyed()) w.webContents.send('update:stare', payload)
   }
 }
 
-export function initAutoUpdate(win: BrowserWindow): void {
-  fereastra = win
+function mesajEroare(err: unknown): string {
+  const brut = err instanceof Error ? err.message : String(err)
+  // Mesajele electron-updater sunt în engleză și tehnice; le traducem pe cele
+  // pe care utilizatorul le poate întâlni realist.
+  if (/net::|ENOTFOUND|EAI_AGAIN|ETIMEDOUT|ECONNREFUSED/i.test(brut)) {
+    return 'Nu am putut contacta serverul de actualizări. Verifică legătura la internet.'
+  }
+  if (/ERR_UPDATER_NO_PUBLISHED_VERSIONS|404/i.test(brut)) {
+    return 'Nu există încă nicio versiune publicată.'
+  }
+  if (/sha512|checksum|signature/i.test(brut)) {
+    return 'Fișierul descărcat pare deteriorat. Încearcă din nou mai târziu.'
+  }
+  return brut
+}
 
-  // Handlerele se înregistrează ÎNTOTDEAUNA, inclusiv în dezvoltare — altfel
-  // butonul din Setări ar da „No handler registered for 'update:check'".
-  ipcMain.handle('update:check', () => verificaActualizari())
+function conecteazaEvenimente(): void {
+  autoUpdater.on('checking-for-update', () => setStare({ faza: 'verificare' }))
 
-  // Interfața întreabă la montare dacă există deja o actualizare găsită.
-  // Împreună cu anuntaRenderer() acoperă ambele ordini posibile de pornire.
-  ipcMain.handle('update:pending', () =>
-    pendingVersion && getSetari().versiune_ignorata !== pendingVersion
-      ? { version: pendingVersion }
-      : null
-  )
-
-  ipcMain.handle('update:response', (_e, raspuns: 'da' | 'nu' | 'skip') => {
-    if (raspuns === 'da' && app.isPackaged) {
-      autoUpdater.downloadUpdate().catch((e) => console.error('downloadUpdate:', e))
-    } else if (raspuns === 'skip' && pendingVersion) {
-      saveSetari({ versiune_ignorata: pendingVersion })
-      pendingVersion = null
+  autoUpdater.on('update-available', (detalii) => {
+    const versiune = detalii.version
+    // O versiune pusă deoparte de utilizator nu mai deranjează, dar una mai nouă
+    // decât ea da — comparăm pe egalitate, deci orice altă versiune trece.
+    if (getSetari().versiune_ignorata === versiune) {
+      jurnal.info(`Versiunea ${versiune} este ignorată de utilizator.`)
+      setStare({ faza: 'inactiv' })
+      return
     }
+    setStare({ faza: 'disponibila', versiune })
   })
 
-  // În dezvoltare nu există fișier de actualizare — restul nu are sens.
-  if (!app.isPackaged) return
+  autoUpdater.on('update-not-available', () => setStare({ faza: 'la_zi' }))
 
-  autoUpdater.autoDownload = false
-  autoUpdater.autoInstallOnAppQuit = true
-
-  autoUpdater.on('update-available', (info) => {
-    if (getSetari().versiune_ignorata === info.version) return // ignorată anterior
-    pendingVersion = info.version
-    anuntaRenderer()
+  autoUpdater.on('download-progress', (p) => {
+    ultimulProgres = Date.now()
+    setStare({
+      faza: 'descarcare',
+      versiune: versiuneInLucru ?? '',
+      procent: Math.round(p.percent)
+    })
   })
 
-  autoUpdater.on('update-downloaded', () => {
-    // Repornește și instalează, după ce utilizatorul a ales „Da”.
-    autoUpdater.quitAndInstall(false, true)
+  autoUpdater.on('update-downloaded', (detalii) => {
+    versiuneDescarcata = detalii.version
+    // NU instalăm de la sine: utilizatorul poate fi în mijlocul unei comenzi.
+    // Îl întrebăm și așteptăm `update:install`.
+    setStare({ faza: 'descarcata', versiune: detalii.version })
   })
 
   autoUpdater.on('error', (err) => {
-    ultimaEroare = String(err?.message ?? err)
-    console.error('Eroare actualizare automată:', err)
+    jurnal.error('Actualizare automată:', err)
+    // Dacă instalarea nu a apucat să pornească (instalator lipsă, pus în
+    // carantină de antivirus), aplicația rămâne deschisă. Fără resetarea asta,
+    // steagul ar rămâne ridicat și ar sări peste backupul automat la nesfârșit.
+    instalareInCurs = false
+    setStare({ faza: 'eroare', mesaj: mesajEroare(err) })
+  })
+}
+
+// Handlerele IPC se înregistrează o singură dată și indiferent dacă aplicația e
+// împachetată: altfel, în dezvoltare, apelurile din interfață ar rămâne
+// promisiuni respinse („No handler registered for …”).
+export function registerUpdateIpc(): void {
+  // `update:getStare` este cererea (invoke), `update:stare` este anunțul (send).
+  ipcMain.handle('update:getStare', (): InfoActualizare => info())
+
+  ipcMain.handle('update:check', async (): Promise<void> => {
+    if (!app.isPackaged) {
+      setStare({
+        faza: 'eroare',
+        mesaj: 'Actualizările funcționează doar în aplicația instalată, nu în modul dezvoltare.'
+      })
+      return
+    }
+    // O verificare pornită peste una în desfășurare ar rescrie starea: bara de
+    // progres ar dispărea, apoi ar reapărea întrebarea „Actualizare
+    // disponibilă?” în timp ce descărcarea încă rulează.
+    if (stare.faza === 'verificare' || stare.faza === 'descarcare' || stare.faza === 'descarcata') {
+      setStare(stare)
+      return
+    }
+    try {
+      await autoUpdater.checkForUpdates()
+    } catch (err) {
+      jurnal.error('Verificare actualizări:', err)
+      setStare({ faza: 'eroare', mesaj: mesajEroare(err) })
+    }
   })
 
-  autoUpdater.checkForUpdates().catch((e) => {
-    ultimaEroare = String(e?.message ?? e)
-    console.error('checkForUpdates:', e)
+  ipcMain.handle('update:response', async (_e, raspuns: 'da' | 'nu' | 'skip'): Promise<void> => {
+    if (raspuns === 'da') {
+      if (stare.faza === 'disponibila') versiuneInLucru = stare.versiune
+      versiuneDescarcata = null
+      // Păstrăm jetonul: o descărcare blocată (proxy de firmă, legătură moartă)
+      // trebuie să poată fi oprită. Altfel fereastra rămâne pe ecran cu bara
+      // înțepenită și nicio verificare ulterioară nu mai pornește.
+      anulareDescarcare = new CancellationToken()
+      ultimulProgres = Date.now()
+      setStare({ faza: 'descarcare', versiune: versiuneInLucru ?? '', procent: 0 })
+      try {
+        await autoUpdater.downloadUpdate(anulareDescarcare)
+      } catch (err) {
+        if (anulareDescarcare?.cancelled) {
+          jurnal.info('Descărcare anulată de utilizator.')
+          setStare({ faza: 'inactiv' })
+        } else {
+          jurnal.error('Descărcare actualizare:', err)
+          setStare({ faza: 'eroare', mesaj: mesajEroare(err) })
+        }
+      } finally {
+        anulareDescarcare = null
+      }
+      return
+    }
+    if (raspuns === 'skip' && stare.faza === 'disponibila') {
+      // Dacă scrierea eșuează (bază blocată, aplicație în curs de închidere),
+      // tot trebuie să ieșim din starea „disponibila” — altfel rămâne agățată
+      // acolo și nicio verificare ulterioară nu mai pornește.
+      try {
+        saveSetari({ versiune_ignorata: stare.versiune })
+      } catch (err) {
+        jurnal.error('Nu am putut reține versiunea ignorată:', err)
+      }
+    }
+    setStare({ faza: 'inactiv' })
   })
+
+  ipcMain.handle('update:install', (_e, cand: 'acum' | 'la_inchidere'): void => {
+    // `versiuneDescarcata` se completează DOAR în `update-downloaded`, deci
+    // faptul că e ne-nulă chiar dovedește că există un instalator pe disc.
+    // Nu ne putem lega de fază: fereastra o consumă închizându-se, iar butonul
+    // din Setări trebuie să funcționeze și după aceea.
+    if (versiuneDescarcata === null) return
+    if (cand === 'la_inchidere') {
+      // Nu e nimic de pornit aici: `autoInstallOnAppQuit` e deja `true` de la
+      // inițializare (vezi initAutoUpdate), iar electron-updater instalează
+      // singur pe `quit`, după ce `will-quit` a terminat backupul.
+      setStare({ faza: 'inactiv' })
+      jurnal.info('Actualizarea se va instala la următoarea închidere.')
+      return
+    }
+    instalareInCurs = true
+    jurnal.info(`Instalez versiunea ${versiuneDescarcata} și repornesc.`)
+    // isSilent=true: instalatorul NSIS rulează cu /S, fără expertul cu ferestre
+    // (și fără avertismentul SmartScreen pe care mulți utilizatori l-ar anula).
+    // Doar în modul silențios electron-updater ține cont de „repornește după”.
+    autoUpdater.quitAndInstall(true, true)
+  })
+
+  ipcMain.handle('update:cancel', (): void => {
+    if (anulareDescarcare && !anulareDescarcare.cancelled) anulareDescarcare.cancel()
+  })
+
+  ipcMain.handle('update:clearSkipped', (): void => {
+    saveSetari({ versiune_ignorata: null })
+    jurnal.info('Lista versiunilor ignorate a fost golită.')
+    // Retrimitem tabloul, ca butonul „Nu mai ignora…” să dispară de la sine.
+    setStare(stare)
+  })
+}
+
+export function initAutoUpdate(): void {
+  // În dezvoltare nu există fișier de actualizare — nu pornim verificările.
+  if (!app.isPackaged) return
+
+  autoUpdater.logger = jurnal
+  autoUpdater.autoDownload = false
+  // TREBUIE să fie `true` ÎNAINTE de descărcare. electron-updater își pune
+  // cârligul de instalare-la-închidere o singură dată, din `executeDownload`,
+  // iar `addQuitHandler()` iese imediat dacă `autoInstallOnAppQuit` e fals în
+  // clipa aceea (BaseUpdater.js). Setat mai târziu, nu ar mai avea niciun
+  // efect, iar „La următoarea închidere” nu ar instala niciodată nimic.
+  //
+  // Nu e o cursă cu backupul automat: cârligul lor rulează pe `quit`, care vine
+  // după `will-quit`, unde facem backupul. Backupul apucă să se termine întreg.
+  autoUpdater.autoInstallOnAppQuit = true
+
+  conecteazaEvenimente()
+
+  autoUpdater.checkForUpdates().catch((err) => {
+    jurnal.error('Verificare la pornire:', err)
+    setStare({ faza: 'eroare', mesaj: mesajEroare(err) })
+  })
+
+  // O aplicație ținută deschisă săptămâni la rând ar verifica o singură dată.
+  cronometru = setInterval(() => {
+    if (stare.faza === 'inactiv' || stare.faza === 'la_zi' || stare.faza === 'eroare') {
+      autoUpdater.checkForUpdates().catch((err) => jurnal.error('Reverificare:', err))
+    }
+  }, INTERVAL_REVERIFICARE)
+  cronometru.unref()
+
+  // O descărcare care se oprește în tăcere (proxy care ține conexiunea
+  // deschisă, filtru de firmă) nu produce nici „terminat”, nici „eroare”. Fără
+  // supravegherea asta, faza „descarcare” ar rămâne definitivă: bara înghețată
+  // pe ecran și niciun fel de verificare până la repornirea aplicației.
+  supraveghere = setInterval(() => {
+    if (stare.faza !== 'descarcare') return
+    if (Date.now() - ultimulProgres < RABDARE_DESCARCARE) return
+    jurnal.warn('Descărcarea nu a mai avansat de 10 minute — o opresc.')
+    anulareDescarcare?.cancel()
+    setStare({
+      faza: 'eroare',
+      mesaj: 'Descărcarea s-a oprit. Verifică legătura la internet și încearcă din nou.'
+    })
+  }, INTERVAL_SUPRAVEGHERE)
+  supraveghere.unref()
+}
+
+export function opresteAutoUpdate(): void {
+  if (cronometru) {
+    clearInterval(cronometru)
+    cronometru = null
+  }
+  if (supraveghere) {
+    clearInterval(supraveghere)
+    supraveghere = null
+  }
 }

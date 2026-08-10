@@ -12,6 +12,11 @@
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json --composite false",
     "typecheck": "npm run typecheck:node && npm run typecheck:web",
+    "rebuild:node": "npm rebuild better-sqlite3",
+    "rebuild:electron": "electron-rebuild -f -o better-sqlite3",
+    "predev": "npm run rebuild:electron",
+    "prestart": "npm run rebuild:electron",
+    "pretest": "npm run rebuild:node",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint src shared tests",
@@ -20,7 +25,8 @@
     "postinstall": "electron-builder install-app-deps",
     "pack:dir": "npm run build && electron-builder --dir",
     "dist": "npm run build && electron-builder",
-    "downloads": "node scripts/downloads.mjs"
+    "downloads": "node scripts/downloads.mjs",
+    "iconita": "node scripts/genereaza-iconita.mjs"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",
@@ -28,6 +34,7 @@
     "exceljs": "^4.4.0"
   },
   "devDependencies": {
+    "@electron/rebuild": "^4.0.4",
     "@eslint/js": "^10.0.1",
     "@mantine/charts": "^9.4.0",
     "@mantine/core": "^9.4.0",

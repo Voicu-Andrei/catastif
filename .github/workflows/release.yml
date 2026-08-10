@@ -1,7 +1,12 @@
 name: Release
 
-# Construiește instalatoarele și le publică pe pagina Releases la fiecare tag „v*”.
-# Exemplu: git tag v0.1.0 && git push origin v0.1.0
+# Construiește instalatoarele și le publică pe pagina Releases.
+#
+# Două căi de pornire:
+#  - un tag „v*” împins (calea obișnuită): git tag v0.1.0 && git push origin v0.1.0
+#  - pornire manuală din fila Actions („Run workflow”), utilă când tagul nu poate
+#    fi împins. electron-builder creează oricum release-ul și tagul din `version`
+#    din package.json, deci rezultatul este identic.
 
 on:
   push:
@@ -20,11 +25,61 @@ permissions:
 # utilizatorul ar descărca un fișier care nu se deschide. Se readaugă
 # `macos-latest` în matrice după ce rezolvăm semnarea.
 jobs:
+  # electron-builder derivă tagul release-ului din `version` din package.json, NU
+  # din tagul împins. Dacă cele două diferă, artefactele ajung pe alt tag decât
+  # cel care a pornit build-ul, iar aplicațiile instalate nu văd niciodată
+  # actualizarea. Verificăm o singură dată, înainte de orice build.
+  verifica:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalează dependențele
+        run: npm ci
+
+      # Doar la pornirea prin tag: la pornirea manuală nu există tag de comparat,
+      # iar tagul release-ului îl scrie electron-builder din package.json.
+      - name: Tagul trebuie să corespundă versiunii din package.json
+        if: github.ref_type == 'tag'
+        shell: bash
+        run: |
+          versiune="v$(node -p "require('./package.json').version")"
+          if [ "$versiune" != "$GITHUB_REF_NAME" ]; then
+            echo "Tagul împins ($GITHUB_REF_NAME) nu corespunde versiunii din package.json ($versiune)."
+            echo "Actualizează 'version' în package.json, apoi refă tagul."
+            exit 1
+          fi
+          echo "Versiune confirmată: $versiune"
+
+      - name: Verifică tipurile
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Rulează testele
+        run: npm test
+
   release:
+    needs: verifica
     strategy:
       fail-fast: false
+      # Rulăm secvențial: ambele sisteme publică pe același tag, iar dacă pornesc
+      # în paralel fiecare poate crea propriul release pentru acel tag, lăsând
+      # instalatorul Windows și latest.yml pe unul, iar macOS pe celălalt.
+      max-parallel: 1
+      # `ubuntu-latest` produce AppImage-ul pe care electron-builder.yml îl
+      # declară — altfel configurația promitea un artefact care nu exista.
       matrix:
-        os: [windows-latest]
+        # macOS rămâne EXCLUS: build-ul ar fi complet nesemnat, iar macOS refuză
+        # să pornească o aplicație nesemnată pe procesoarele Apple — utilizatorul
+        # ar descărca un fișier care nu se deschide. Se readaugă după semnare.
+        os: [windows-latest, ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4

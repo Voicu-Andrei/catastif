@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   Alert,
   Box,
@@ -32,7 +32,7 @@ import {
   IconRestore,
   IconTrash
 } from '@tabler/icons-react'
-import type { Setari as TSetari } from '@shared/types'
+import type { Setari as TSetari, InfoActualizare, StareActualizare } from '@shared/types'
 import { PageHeader } from '../components/Placeholder'
 import { mesajEroare } from '../lib/erori'
 import { TVA_SELECT_DATA } from '../lib/tva'
@@ -59,6 +59,27 @@ const INITIAL: TSetari = {
   versiune_ignorata: null
 }
 
+// Cum arată fiecare fază a actualizării în Setări. Fereastra modală se ocupă de
+// pașii în care utilizatorul trebuie să decidă ceva; aici arătăm doar starea.
+function textStareActualizare(s: StareActualizare): string {
+  switch (s.faza) {
+    case 'verificare':
+      return 'Se verifică…'
+    case 'disponibila':
+      return `Versiunea ${s.versiune} este disponibilă.`
+    case 'descarcare':
+      return `Se descarcă versiunea ${s.versiune}… ${s.procent}%`
+    case 'descarcata':
+      return `Versiunea ${s.versiune} este gata de instalare.`
+    case 'la_zi':
+      return 'Folosești cea mai recentă versiune.'
+    case 'eroare':
+      return s.mesaj
+    default:
+      return ''
+  }
+}
+
 export function Setari(): React.JSX.Element {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -67,8 +88,27 @@ export function Setari(): React.JSX.Element {
   const [confirmare, setConfirmare] = useState('')
   const [seSterge, setSeSterge] = useState(false)
   const [versiune, setVersiune] = useState('')
-  const [seVerifica, setSeVerifica] = useState(false)
+  const [infoActualizare, setInfoActualizare] = useState<InfoActualizare>({
+    stare: { faza: 'inactiv' },
+    versiuneIgnorata: null,
+    versiuneDescarcata: null
+  })
+  const primitPush = useRef(false)
   const form = useForm<TSetari>({ initialValues: INITIAL })
+
+  useEffect(() => {
+    window.api.app.getVersion().then(setVersiune)
+    // Abonarea înaintea cererii: un instantaneu întârziat nu are voie să dea
+    // înapoi o stare mai nouă sosită între timp (butonul ar rămâne blocat).
+    const dezabonare = window.api.update.onState((i) => {
+      primitPush.current = true
+      setInfoActualizare(i)
+    })
+    window.api.update.state().then((i) => {
+      if (!primitPush.current) setInfoActualizare(i)
+    })
+    return dezabonare
+  }, [])
 
   useEffect(() => {
     window.api.setari
@@ -116,43 +156,6 @@ export function Setari(): React.JSX.Element {
     }
   }
 
-  async function verificaActualizari(): Promise<void> {
-    setSeVerifica(true)
-    try {
-      const r = await window.api.update.check()
-      if (r.stare === 'disponibila') {
-        notifications.show({
-          color: 'teal',
-          title: `Versiunea ${r.versiune} este disponibilă`,
-          message: 'Fereastra de actualizare se deschide imediat.'
-        })
-      } else if (r.stare === 'la_zi') {
-        notifications.show({
-          color: 'teal',
-          title: 'Ești la zi',
-          message: `Versiunea ${r.versiuneCurenta} este cea mai nouă.`
-        })
-      } else if (r.stare === 'dezvoltare') {
-        notifications.show({
-          color: 'gray',
-          title: 'Mod dezvoltare',
-          message: 'Actualizările funcționează doar în aplicația instalată.'
-        })
-      } else {
-        notifications.show({
-          color: 'red',
-          title: 'Verificarea a eșuat',
-          message: r.mesaj ?? 'Nu s-a putut contacta serverul de actualizări.',
-          autoClose: false
-        })
-      }
-    } catch (err) {
-      notifications.show({ color: 'red', title: 'Eroare', message: mesajEroare(err) })
-    } finally {
-      setSeVerifica(false)
-    }
-  }
-
   async function alegeLogo(): Promise<void> {
     try {
       setLogo(await window.api.setari.alegeLogo())
@@ -179,8 +182,18 @@ export function Setari(): React.JSX.Element {
         numar_factura_curent: Number(values.numar_factura_curent),
         prag_stoc_implicit: Number(values.prag_stoc_implicit)
       }
+      // `versiune_ignorata` aparține fluxului de actualizare, nu formularului
+      // ăstuia: el o citește o singură dată, la montare. Dacă între timp
+      // utilizatorul a apăsat „Nu pentru această versiune” în fereastra de
+      // actualizare, un „Salvează” aici ar trimite înapoi valoarea veche și ar
+      // anula alegerea tocmai făcută.
+      delete payload.versiune_ignorata
       const saved = await window.api.setari.save(payload)
       invalidateSetari()
+      // Reîncărcăm din răspuns, nu doar refacem instantaneul: `versiune_ignorata`
+      // a fost scos din payload, deci valoarea din formular poate fi mai veche
+      // decât cea din baza de date, iar formularul ar rămâne „murdar” pe veci.
+      form.setValues(saved)
       form.resetDirty(saved)
       notifications.show({ color: 'teal', title: 'Salvat', message: 'Setările au fost salvate.' })
     } catch (err) {
@@ -224,7 +237,16 @@ export function Setari(): React.JSX.Element {
       confirmProps: { color: 'red' },
       onConfirm: async () => {
         const res = await window.api.backup.importFrom()
-        if (!res.ok) {
+        if (res.ok) {
+          // Procesul principal amână repornirea cu câteva sute de milisecunde
+          // tocmai ca mesajul ăsta să apuce să ajungă pe ecran: altfel fereastra
+          // ar dispărea fără explicație și ar semăna cu o prăbușire.
+          notifications.show({
+            color: 'teal',
+            title: 'Restaurare reușită',
+            message: res.mesaj ?? 'Aplicația se repornește…'
+          })
+        } else {
           notifications.show({
             color: 'red',
             title: 'Restaurare eșuată',
@@ -420,52 +442,87 @@ export function Setari(): React.JSX.Element {
           </Group>
         </Paper>
 
-        {/* Versiune și actualizări */}
+        {/* Actualizări */}
         <Paper withBorder radius="lg" p="lg">
           <Title order={4} mb="xs">
-            Versiune și actualizări
+            Actualizări
           </Title>
-          <Group justify="space-between" align="center" wrap="wrap" gap="md">
-            <div>
-              <Text size="sm">
-                Versiunea instalată: <b>{versiune || '—'}</b>
-              </Text>
-              <Text size="xs" c="dimmed">
-                Aplicația verifică singură la fiecare pornire. Poți verifica și acum.
-              </Text>
-            </div>
+          <Text size="sm" c="dimmed" mb="md">
+            Aplicația verifică singură dacă a apărut o versiune nouă. Actualizarea nu îți atinge
+            datele: produsele, comenzile și atașamentele rămân exact unde sunt.
+          </Text>
+
+          <Group align="flex-end" gap="sm" mb={infoActualizare.stare.faza === 'inactiv' ? 0 : 'sm'}>
+            <TextInput
+              label="Versiunea instalată"
+              readOnly
+              value={versiune ? `Catastif ${versiune}` : '…'}
+              w={220}
+            />
             <Button
               variant="default"
               leftSection={<IconRefresh size={18} />}
-              onClick={verificaActualizari}
-              loading={seVerifica}
+              onClick={() => window.api.update.check()}
+              loading={infoActualizare.stare.faza === 'verificare'}
             >
-              Verifică actualizări
+              Verifică acum
             </Button>
+            {infoActualizare.versiuneDescarcata !== null && (
+              <Button onClick={() => window.api.update.install('acum')}>
+                Repornește și instalează
+              </Button>
+            )}
+            {infoActualizare.versiuneIgnorata && (
+              <Button
+                variant="subtle"
+                onClick={async () => {
+                  await window.api.update.clearSkipped()
+                  notifications.show({
+                    color: 'teal',
+                    title: 'Gata',
+                    message: 'Vei fi anunțat din nou pentru orice versiune nouă.'
+                  })
+                }}
+              >
+                Nu mai ignora versiunea {infoActualizare.versiuneIgnorata}
+              </Button>
+            )}
           </Group>
-        </Paper>
 
-        {/* Zonă periculoasă */}
-        <Paper withBorder radius="lg" p="lg" style={{ borderColor: 'var(--mantine-color-red-3)' }}>
-          <Title order={4} mb="xs" c="red.8">
-            Pornește de la zero
-          </Title>
-          <Text size="sm" c="dimmed" mb="md">
-            Șterge toate înregistrările — produse, clienți, furnizori, oferte, comenzi, achiziții,
-            plăți și fișierele atașate. Datele firmei de mai sus (nume, CUI, adresă, logo, folder de
-            backup) rămân neatinse. Util după perioada de probă, ca să începi cu registre curate.
-          </Text>
-          <Button
-            color="red"
-            variant="light"
-            leftSection={<IconAlertTriangle size={18} />}
-            onClick={() => {
-              setConfirmare('')
-              setResetDeschis(true)
-            }}
+          {infoActualizare.stare.faza !== 'inactiv' && (
+            <Text size="sm" c={infoActualizare.stare.faza === 'eroare' ? 'red.7' : 'dimmed'}>
+              {textStareActualizare(infoActualizare.stare)}
+            </Text>
+          )}
+
+          {/* Zonă periculoasă */}
+          <Paper
+            withBorder
+            radius="lg"
+            p="lg"
+            style={{ borderColor: 'var(--mantine-color-red-3)' }}
           >
-            Șterge toate datele
-          </Button>
+            <Title order={4} mb="xs" c="red.8">
+              Pornește de la zero
+            </Title>
+            <Text size="sm" c="dimmed" mb="md">
+              Șterge toate înregistrările — produse, clienți, furnizori, oferte, comenzi, achiziții,
+              plăți și fișierele atașate. Datele firmei de mai sus (nume, CUI, adresă, logo, folder
+              de backup) rămân neatinse. Util după perioada de probă, ca să începi cu registre
+              curate.
+            </Text>
+            <Button
+              color="red"
+              variant="light"
+              leftSection={<IconAlertTriangle size={18} />}
+              onClick={() => {
+                setConfirmare('')
+                setResetDeschis(true)
+              }}
+            >
+              Șterge toate datele
+            </Button>
+          </Paper>
         </Paper>
       </Stack>
 

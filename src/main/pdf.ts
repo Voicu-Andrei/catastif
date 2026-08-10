@@ -1,11 +1,17 @@
 import { BrowserWindow, dialog, shell } from 'electron'
-import { writeFileSync } from 'fs'
+import { writeFileSync, rmSync } from 'fs'
+import { join } from 'path'
+import { tmpdir } from 'os'
+import { pathToFileURL } from 'url'
 import { logoDataUri } from './logo'
 import { getComanda } from './db/repos/comenzi'
 import { getClient } from './db/repos/clienti'
 import { getSetari } from './db/repos/setari'
 import { getRapoarte } from './db/repos/rapoarte'
 import { calcLinie } from '@shared/calc'
+import { etichetaUm } from '@shared/um'
+import { numeFisierSigur } from './nume-fisier'
+import { jurnal } from './log'
 import type { BackupResult, ComandaDetaliu, Client, Setari } from '@shared/types'
 
 const lei = (b: number): string =>
@@ -102,7 +108,7 @@ function comandaHtml(s: Setari, c: ComandaDetaliu, client: Client | null): strin
         <td>${i + 1}</td>
         <td>${esc(l.descriere)}</td>
         <td class="r">${l.cantitate}</td>
-        <td>${esc(l.unitate_masura)}</td>
+        <td>${esc(etichetaUm(l.unitate_masura))}</td>
         <td class="r">${lei(l.pret_unitar)}</td>
         <td class="r">${l.cota_tva}%</td>
         <td class="r">${lei(net)}</td>
@@ -116,16 +122,35 @@ function comandaHtml(s: Setari, c: ComandaDetaliu, client: Client | null): strin
          <tr><td>Rest de plată</td><td class="r">${lei(c.rest_de_plata)}</td></tr>`
       : ''
 
+  // Data montajului ajunge pe documentul clientului — el trebuie să citească de
+  // pe hârtia primită când vine echipa. Pe o comandă anulată o ascundem
+  // (lucrarea nu mai are loc), dar un montaj deja efectuat rămâne: e un fapt.
+  const randMontaj =
+    c.data_montaj && c.stare !== 'anulata' ? `<br/>Montaj: ${dataRo(c.data_montaj)}` : ''
+  const randMontajEfectuat = c.montaj_finalizat_la
+    ? `<br/>Montaj efectuat: ${dataRo(c.montaj_finalizat_la)}`
+    : ''
+  // `detalii_montaj` NU apare niciodată aici: e nota internă a echipei
+  // („etaj 4, fără lift, cheia la vecin”), nu informație pentru client.
+  const casetaAdresaMontaj = c.adresa_montaj
+    ? `<div class="box" style="flex:1"><div class="muted" style="margin-bottom:4px">Adresa de montaj</div>${esc(
+        c.adresa_montaj
+      )}</div>`
+    : ''
+
   return `<!doctype html><html lang="ro"><head><meta charset="utf-8"><style>${STIL}</style></head><body>
     <div class="row" style="align-items:flex-start">
       ${antet(s)}
       <div style="text-align:right">
         <h1>${titlu}</h1>
-        <div class="muted">Nr. ${esc(c.numar ?? '#' + c.id)}<br/>Data: ${dataRo(c.data_creare)}</div>
+        <div class="muted">Nr. ${esc(c.numar ?? '#' + c.id)}<br/>Data: ${dataRo(
+          c.data_creare
+        )}${randMontaj}${randMontajEfectuat}</div>
       </div>
     </div>
     <div class="row" style="margin-top:18px">
       <div class="box" style="flex:1"><div class="muted" style="margin-bottom:4px">Cumpărător</div>${cumparator}</div>
+      ${casetaAdresaMontaj}
     </div>
     <table>
       <thead><tr>
@@ -191,31 +216,99 @@ function raportHtml(an: number): string {
   </body></html>`
 }
 
+// Randează HTML-ul într-o fereastră ascunsă și întoarce PDF-ul ca octeți.
+async function randeazaPdf(html: string): Promise<Buffer> {
+  const pdfWin = new BrowserWindow({ show: false })
+  try {
+    await pdfWin.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html))
+    return await pdfWin.webContents.printToPDF({
+      printBackground: true,
+      pageSize: 'A4',
+      margins: { top: 0.5, bottom: 0.5, left: 0.5, right: 0.5 }
+    })
+  } finally {
+    pdfWin.destroy()
+  }
+}
+
+// Previzualizare: scriem PDF-ul într-un fișier temporar și îl deschidem în
+// vizualizatorul PDF încorporat în Chromium — cu derulare, zoom, tipărire și
+// salvare. Nimic nu ajunge în documentele utilizatorului până nu cere el.
+export async function previzualizeazaPdf(
+  parinte: BrowserWindow | undefined,
+  html: string,
+  titlu: string
+): Promise<BackupResult> {
+  try {
+    const data = await randeazaPdf(html)
+    // Numele fișierului temporar devine titlul din vizualizator, deci trebuie
+    // să fie curat pe Windows (fără / \ : * ? " < > |).
+    const cale = join(tmpdir(), `${numeFisierSigur(titlu, 'document')}.pdf`)
+    writeFileSync(cale, data)
+
+    const vizualizator = new BrowserWindow({
+      width: 900,
+      height: 1000,
+      parent: parinte,
+      title: titlu,
+      autoHideMenuBar: true,
+      backgroundColor: '#525659',
+      webPreferences: { plugins: true, sandbox: false }
+    })
+    // Fereastra de previzualizare nu rulează cod din aplicație — orice legătură
+    // din document se deschide în browserul implicit, nu aici.
+    vizualizator.webContents.setWindowOpenHandler(({ url }) => {
+      shell.openExternal(url)
+      return { action: 'deny' }
+    })
+    vizualizator.on('closed', () => {
+      try {
+        rmSync(cale, { force: true })
+      } catch {
+        /* fișier temporar — dacă Windows îl mai ține deschis, îl curăță sistemul */
+      }
+    })
+    await vizualizator.loadURL(pathToFileURL(cale).toString())
+    return { ok: true, cale }
+  } catch (err) {
+    return { ok: false, mesaj: (err as Error).message }
+  }
+}
+
 async function htmlToPdf(
   win: BrowserWindow | undefined,
   html: string,
   defaultName: string
 ): Promise<BackupResult> {
-  const pdfWin = new BrowserWindow({ show: false })
   try {
-    await pdfWin.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html))
-    const data = await pdfWin.webContents.printToPDF({
-      printBackground: true,
-      pageSize: 'A4',
-      margins: { top: 0.5, bottom: 0.5, left: 0.5, right: 0.5 }
-    })
+    const data = await randeazaPdf(html)
     const res = await dialog.showSaveDialog(win!, {
-      defaultPath: `${defaultName}.pdf`,
+      // Numerele de comandă românești conțin des „/” („F 145/2026”), pe care
+      // Windows îl citește ca separator de folder.
+      defaultPath: `${numeFisierSigur(defaultName, 'document')}.pdf`,
       filters: [{ name: 'PDF', extensions: ['pdf'] }]
     })
     if (res.canceled || !res.filePath) return { ok: false, mesaj: 'Export anulat.' }
     writeFileSync(res.filePath, data)
-    shell.openPath(res.filePath)
+    const eroareDeschidere = await shell.openPath(res.filePath)
+    if (eroareDeschidere) {
+      jurnal.warn(`PDF salvat, dar nu s-a putut deschide: ${eroareDeschidere}`)
+    }
     return { ok: true, cale: res.filePath }
   } catch (err) {
     return { ok: false, mesaj: (err as Error).message }
-  } finally {
-    pdfWin.destroy()
+  }
+}
+
+// Documentele se construiesc o singură dată; previzualizarea și salvarea
+// pornesc amândouă de la exact același HTML.
+function htmlComanda(id: number): { html: string; nume: string } | null {
+  const c = getComanda(id)
+  if (!c) return null
+  const client = c.client_id != null ? (getClient(c.client_id) ?? null) : null
+  return {
+    html: comandaHtml(getSetari(), c, client),
+    nume: `${c.stare === 'oferta' ? 'Oferta' : 'Comanda'}-${c.numar ?? c.id}`
   }
 }
 
@@ -223,11 +316,18 @@ export async function generatePdfComanda(
   win: BrowserWindow | undefined,
   id: number
 ): Promise<BackupResult> {
-  const c = getComanda(id)
-  if (!c) return { ok: false, mesaj: 'Comanda nu există.' }
-  const client = c.client_id != null ? (getClient(c.client_id) ?? null) : null
-  const nume = `${c.stare === 'oferta' ? 'Oferta' : 'Comanda'}-${c.numar ?? c.id}`
-  return htmlToPdf(win, comandaHtml(getSetari(), c, client), nume)
+  const doc = htmlComanda(id)
+  if (!doc) return { ok: false, mesaj: 'Comanda nu există.' }
+  return htmlToPdf(win, doc.html, doc.nume)
+}
+
+export async function previzualizeazaPdfComanda(
+  win: BrowserWindow | undefined,
+  id: number
+): Promise<BackupResult> {
+  const doc = htmlComanda(id)
+  if (!doc) return { ok: false, mesaj: 'Comanda nu există.' }
+  return previzualizeazaPdf(win, doc.html, doc.nume)
 }
 
 export async function generatePdfRaport(
@@ -235,4 +335,11 @@ export async function generatePdfRaport(
   an: number
 ): Promise<BackupResult> {
   return htmlToPdf(win, raportHtml(an), `Raport-${an}`)
+}
+
+export async function previzualizeazaPdfRaport(
+  win: BrowserWindow | undefined,
+  an: number
+): Promise<BackupResult> {
+  return previzualizeazaPdf(win, raportHtml(an), `Raport-${an}`)
 }

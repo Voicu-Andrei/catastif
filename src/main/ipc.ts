@@ -3,13 +3,19 @@ import type { BackupResult, Setari } from '@shared/types'
 import type { EntitateTip, ExportFormat } from '@shared/types'
 import { getSetari, saveSetari } from './db/repos/setari'
 import { backupToSync, rotateBackups, restoreFromSync } from './backup'
+import { marcheazaInchiderea } from './db/connection'
 import { registerEntitiesIpc } from './ipc-entities'
 import { getDashboard } from './db/repos/dashboard'
 import { searchGlobal } from './db/repos/search'
 import { listFisiere, attachFisiere, openFisier, deleteFisier } from './files'
 import { getRapoarte } from './db/repos/rapoarte'
 import { exportTabel } from './export'
-import { generatePdfComanda, generatePdfRaport } from './pdf'
+import {
+  generatePdfComanda,
+  generatePdfRaport,
+  previzualizeazaPdfComanda,
+  previzualizeazaPdfRaport
+} from './pdf'
 import { alegeLogo, logoDataUri, stergeLogo } from './logo'
 import { resetBaza } from './db/reset'
 
@@ -44,6 +50,12 @@ export function registerIpc(): void {
   )
   ipcMain.handle('pdf:comanda', (e, id: number) => generatePdfComanda(winFrom(e), id))
   ipcMain.handle('pdf:raport', (e, an: number) => generatePdfRaport(winFrom(e), an))
+  ipcMain.handle('pdf:previzualizeazaComanda', (e, id: number) =>
+    previzualizeazaPdfComanda(winFrom(e), id)
+  )
+  ipcMain.handle('pdf:previzualizeazaRaport', (e, an: number) =>
+    previzualizeazaPdfRaport(winFrom(e), an)
+  )
 
   // --- Setări ---
   ipcMain.handle('setari:get', () => getSetari())
@@ -101,10 +113,21 @@ export function registerIpc(): void {
         return { ok: false, mesaj: 'Restaurare anulată.' }
       }
       restoreFromSync(res.filePaths[0])
-      // Repornim pentru a reîncărca baza restaurată.
-      app.relaunch()
-      app.exit(0)
-      return { ok: true }
+      // Baza tocmai a fost înlocuită și conexiunea închisă. Fără marcajul ăsta,
+      // `will-quit` ar chema `getSetari()`, ar redeschide baza restaurată, ar
+      // face un backup automat al ei și — prin rotație — ar putea șterge exact
+      // backupul din care tocmai s-a restaurat.
+      marcheazaInchiderea()
+      // Repornim pentru a reîncărca baza restaurată. `app.quit()`, nu
+      // `app.exit()`: exit sare peste `will-quit`, deci peste închiderea curată
+      // a bazei, iar procesul nou ar putea găsi fișierul încă blocat.
+      // Repornirea o programăm după ce răspunsul ajunge în interfață, altfel
+      // promisiunea nu se rezolvă niciodată și utilizatorul nu află nimic.
+      setTimeout(() => {
+        app.relaunch({ args: process.argv.slice(1) })
+        app.quit()
+      }, 400)
+      return { ok: true, mesaj: 'Datele au fost restaurate. Aplicația se repornește…' }
     } catch (err) {
       return { ok: false, mesaj: (err as Error).message }
     }
@@ -112,6 +135,13 @@ export function registerIpc(): void {
 
   ipcMain.handle('backup:openFolder', async (): Promise<void> => {
     const s = getSetari()
-    if (s.backup_folder) await shell.openPath(s.backup_folder)
+    if (!s.backup_folder) return
+    // shell.openPath întoarce un mesaj de eroare în loc să respingă promisiunea.
+    const eroare = await shell.openPath(s.backup_folder)
+    if (eroare) {
+      throw new Error(
+        `Folderul de backup nu poate fi deschis. Verifică dacă mai există (stick scos, folder mutat sau OneDrive deconectat).\n${eroare}`
+      )
+    }
   })
 }

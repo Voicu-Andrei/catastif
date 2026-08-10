@@ -11,13 +11,15 @@ import {
 } from '@mantine/core'
 import { useNavigate } from 'react-router-dom'
 import {
+  IconAlertTriangle,
   IconCash,
   IconClipboardList,
   IconFileText,
   IconPackages,
   IconReportMoney,
   IconSend,
-  IconShoppingCart
+  IconShoppingCart,
+  IconTool
 } from '@tabler/icons-react'
 import type { ReactNode } from 'react'
 import type { DashboardData } from '@shared/types'
@@ -158,6 +160,22 @@ export function Dashboard(): React.JSX.Element {
           icon={<IconPackages size={24} />}
           color="orange"
           onClick={() => navigate('/produse')}
+        />
+        <StatCard
+          label="Montaje de făcut"
+          value={d ? String(d.montaje_saptamana) : null}
+          icon={<IconTool size={24} />}
+          color="blue"
+          hint="Programate în următoarele 7 zile"
+          onClick={() => navigate('/comenzi?montaj=de_facut')}
+        />
+        <StatCard
+          label="Montaje întârziate"
+          value={d ? String(d.montaje_intarziate) : null}
+          icon={<IconAlertTriangle size={24} />}
+          color="red"
+          hint="Data a trecut, nemarcate ca efectuate"
+          onClick={() => navigate('/comenzi?montaj=intarziat')}
         />
         <StatCard
           label="Facturi de trimis la ANAF"

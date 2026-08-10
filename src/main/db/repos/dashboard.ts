@@ -43,6 +43,19 @@ export function getDashboard(): DashboardData {
     )
     .get({ prag: getSetari().prag_stoc_implicit }) as { v: number }
 
+  // Un montaj întârziat înseamnă simultan marfă ieșită din stoc, bani neîncasați
+  // și un client care așteaptă. Ambele numărători filtrează pe stare='comanda',
+  // exact ca badge-ul din lista de comenzi, ca dala și lista să nu se contrazică.
+  // `localtime` e obligatoriu: altfel bascularea vine la 2-3 ore după miezul nopții.
+  const montajeSaptamana = scalar(`
+    SELECT COUNT(*) v FROM comenzi
+    WHERE stare='comanda' AND montaj_finalizat_la IS NULL AND data_montaj IS NOT NULL
+      AND data_montaj <= date('now','localtime','+7 days')`)
+  const montajeIntarziate = scalar(`
+    SELECT COUNT(*) v FROM comenzi
+    WHERE stare='comanda' AND montaj_finalizat_la IS NULL AND data_montaj IS NOT NULL
+      AND data_montaj < date('now','localtime')`)
+
   const comenzi = db
     .prepare(
       `SELECT c.id, c.numar, c.stare, c.total, c.creat_la, cl.nume AS client_nume
@@ -85,6 +98,8 @@ export function getDashboard(): DashboardData {
     de_incasat: deIncasat,
     profit_luna: Math.round(profitLuna),
     stoc_scazut: stocScazut.v,
+    montaje_saptamana: montajeSaptamana,
+    montaje_intarziate: montajeIntarziate,
     activitate
   }
 }

@@ -37,6 +37,7 @@ import {
   acceptaComanda,
   anuleazaComanda,
   inregistreazaPlata,
+  marcheazaMontat,
   deleteComanda
 } from './db/repos/comenzi'
 import {
@@ -90,6 +91,9 @@ export function registerEntitiesIpc(): void {
   ipcMain.handle('comenzi:accepta', (_e, id: number) => acceptaComanda(id))
   ipcMain.handle('comenzi:anuleaza', (_e, id: number) => anuleazaComanda(id))
   ipcMain.handle('comenzi:plata', (_e, id: number, suma: number) => inregistreazaPlata(id, suma))
+  ipcMain.handle('comenzi:marcheazaMontat', (_e, id: number, finalizat: boolean) =>
+    marcheazaMontat(id, finalizat)
+  )
   ipcMain.handle('comenzi:delete', (_e, id: number) => {
     deleteComanda(id)
     stergeAtasamenteEntitate('comanda', id)

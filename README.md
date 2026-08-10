@@ -8,6 +8,12 @@ calculatorul proprietarului; fără cont, fără cloud, fără server.
 > Interfața este integral în limba română. Toate datele stau într-un singur fișier SQLite, cu
 > backup/restaurare cu un clic.
 
+## Instalare
+
+Nu vrei să compilezi nimic? **[Ghidul de instalare pas cu pas »](docs/INSTALARE.md)** — descarci un
+singur fișier de pe pagina [Releases](https://github.com/Voicu-Andrei/catastif/releases/latest) și
+dai câteva clicuri. Fără linie de comandă, fără drepturi de administrator.
+
 ## Stadiu (etape de dezvoltare)
 
 - **M0 — schelet + backup** ✅ shell Mantine în română, SQLite cu migrații, Setări, backup/restaurare.
@@ -32,6 +38,14 @@ substituent („în curând”). Aplicația **nu** gestionează niciodată datel
 > Instalatoarele v1 sunt **nesemnate** — la prima instalare Windows poate afișa un avertisment
 > SmartScreen („Mai multe informații → Executați oricum”). Actualizarea automată funcționează pe
 > Windows; pe macOS necesită semnare (de adăugat ulterior).
+
+## Documentație
+
+- [`docs/SPECIFICATIE.md`](docs/SPECIFICATIE.md) — ce face aplicația și cum se leagă părțile între
+  ele: modelul de date, ciclul de viață al comenzii, efectele pe stoc, formulele, suprafața API și
+  lipsurile cunoscute. Scrisă pentru cineva care reconstruiește ideile pe altă platformă.
+- [`docs/INSTALARE.md`](docs/INSTALARE.md) — instalare și actualizare pe Windows.
+- [`docs/blueprint.md`](docs/blueprint.md) — planul inițial al produsului.
 
 ## Tehnologii
 

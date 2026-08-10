@@ -31,6 +31,7 @@ function seed(): void {
     nume: 'Fereastră PVC',
     descriere: null,
     unitate_masura: 'buc',
+    cost_referinta: 30000,
     pret_referinta: 50000,
     cota_tva: 21,
     track_stock: true,

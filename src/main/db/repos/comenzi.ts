@@ -3,6 +3,7 @@ import { getDb } from '../connection'
 import { ajusteazaStoc } from './stoc'
 import { calcComanda } from '@shared/calc'
 import { valideazaComanda, valideazaSumaPlata } from '../validate'
+import { normalizeazaUm } from '@shared/um'
 import type {
   ComandaCuExtra,
   ComandaDetaliu,
@@ -19,7 +20,19 @@ const LIST_SQL = `
     COALESCE((
       SELECT SUM((l.pret_unitar - l.cost_unitar) * l.cantitate)
       FROM linii_comanda l WHERE l.comanda_id = c.id
-    ), 0) AS profit
+    ), 0) AS profit,
+    -- Starea montajului, derivată — nu o a patra valoare în coloana stare.
+    -- PRIMA RAMURĂ E OBLIGATORIE: fără ea, o comandă anulată cu dată în trecut
+    -- ar purta la nesfârșit badge-ul roșu „Întârziat”, iar o ofertă cu o dată
+    -- pusă în creion ar apărea „Programat” — contrazicând dalele de pe tabloul
+    -- de bord, care filtrează pe stare='comanda'.
+    CASE
+      WHEN c.stare <> 'comanda'                   THEN 'nespecificat'
+      WHEN c.montaj_finalizat_la IS NOT NULL       THEN 'montat'
+      WHEN c.data_montaj IS NULL                   THEN 'neprogramat'
+      WHEN c.data_montaj < date('now','localtime') THEN 'intarziat'
+      ELSE 'programat'
+    END AS stare_montaj
   FROM comenzi c
   LEFT JOIN clienti cl ON cl.id = c.client_id
 `
@@ -37,6 +50,16 @@ export function listComenzi(stare?: StareComanda): ComandaCuExtra[] {
   )
   const rows = (stare ? stmt.all({ stare }) : stmt.all()) as RandComanda[]
   return rows.map(mapRand)
+}
+
+// Toate operațiunile de mai jos întorc comanda proaspăt citită. `getComanda(id)!`
+// putea fi `undefined` dacă înregistrarea dispărea între timp (ștearsă din altă
+// pagină), iar interfața primea `undefined` și se prăbușea cu o eroare în
+// engleză, în loc să spună ce s-a întâmplat.
+function comandaSauEroare(id: number): ComandaDetaliu {
+  const c = getComanda(id)
+  if (!c) throw new Error('Comanda nu mai există.')
+  return c
 }
 
 export function getComanda(id: number): ComandaDetaliu | undefined {
@@ -65,7 +88,7 @@ function insertLinii(db: Database, comandaId: number, linii: LinieComandaInput[]
       produs_id: l.produs_id ?? null,
       descriere: l.descriere,
       cantitate: l.cantitate,
-      unitate_masura: l.unitate_masura || 'buc',
+      unitate_masura: normalizeazaUm(l.unitate_masura),
       cost_unitar: l.cost_unitar,
       pret_unitar: l.pret_unitar,
       cota_tva: l.cota_tva,
@@ -81,6 +104,20 @@ const toCalc = (linii: LinieComandaInput[]): Parameters<typeof calcComanda>[0] =
     pret_unitar: l.pret_unitar,
     cota_tva: l.cota_tva
   }))
+
+// Câmpurile de programare a montajului. Șirul gol venit din formular devine
+// NULL, ca „necompletat” să aibă o singură reprezentare în bază.
+function montajBind(input: ComandaInput): Record<string, string | null> {
+  const gol = (v: string | null | undefined): string | null => {
+    const t = (v ?? '').trim()
+    return t === '' ? null : t
+  }
+  return {
+    data_montaj: gol(input.data_montaj),
+    adresa_montaj: gol(input.adresa_montaj),
+    detalii_montaj: gol(input.detalii_montaj)
+  }
+}
 
 // Numărul e editabil de utilizator, deci trebuie verificat la salvare.
 function verificaNumarUnic(db: Database, numar: string | null, exceptaId?: number): void {
@@ -99,8 +136,10 @@ export function createComanda(input: ComandaInput): ComandaDetaliu {
     verificaNumarUnic(db, input.numar)
     const info = db
       .prepare(
-        `INSERT INTO comenzi (numar, client_id, stare, total_fara_tva, total_tva, total, observatii)
-         VALUES (@numar, @client_id, 'oferta', @tf, @tt, @t, @obs)`
+        `INSERT INTO comenzi (numar, client_id, stare, total_fara_tva, total_tva, total, observatii,
+          data_montaj, adresa_montaj, detalii_montaj)
+         VALUES (@numar, @client_id, 'oferta', @tf, @tt, @t, @obs,
+          @data_montaj, @adresa_montaj, @detalii_montaj)`
       )
       .run({
         numar: input.numar,
@@ -108,7 +147,8 @@ export function createComanda(input: ComandaInput): ComandaDetaliu {
         tf: t.total_fara_tva,
         tt: t.total_tva,
         t: t.total,
-        obs: input.observatii
+        obs: input.observatii,
+        ...montajBind(input)
       })
     const id = Number(info.lastInsertRowid)
     insertLinii(db, id, input.linii)
@@ -139,7 +179,12 @@ export function updateComanda(id: number, input: ComandaInput): ComandaDetaliu {
     // și aplicăm efectul celor noi, ca stocul să reflecte mereu liniile curente.
     if (cur.stare === 'comanda') aplicaStocComanda(db, id, 1)
     db.prepare(
+      // `montaj_finalizat_la` lipsește dinadins din SET: este un fapt petrecut,
+      // ca data_acceptare, nu un câmp de formular. O salvare a comenzii nu are
+      // voie să șteargă înregistrarea că montajul s-a făcut.
       `UPDATE comenzi SET numar=@numar, client_id=@client_id, observatii=@obs,
+        data_montaj=@data_montaj, adresa_montaj=@adresa_montaj,
+        detalii_montaj=@detalii_montaj,
         total_fara_tva=@tf, total_tva=@tt, total=@t, actualizat_la=datetime('now')
        WHERE id=@id`
     ).run({
@@ -147,6 +192,7 @@ export function updateComanda(id: number, input: ComandaInput): ComandaDetaliu {
       numar: input.numar,
       client_id: input.client_id,
       obs: input.observatii,
+      ...montajBind(input),
       tf: t.total_fara_tva,
       tt: t.total_tva,
       t: t.total
@@ -156,7 +202,7 @@ export function updateComanda(id: number, input: ComandaInput): ComandaDetaliu {
     if (cur.stare === 'comanda') aplicaStocComanda(db, id, -1)
   })
   tx()
-  return getComanda(id)!
+  return comandaSauEroare(id)
 }
 
 // Aplică efectul vânzării asupra stocului (semn -1 la confirmare, +1 la anulare).
@@ -180,7 +226,7 @@ export function acceptaComanda(id: number): ComandaDetaliu {
     if (info.changes > 0) aplicaStocComanda(db, id, -1) // vânzarea scade stocul
   })
   tx()
-  return getComanda(id)!
+  return comandaSauEroare(id)
 }
 
 export function anuleazaComanda(id: number): ComandaDetaliu {
@@ -198,7 +244,27 @@ export function anuleazaComanda(id: number): ComandaDetaliu {
     if (c.stare === 'comanda') aplicaStocComanda(db, id, 1) // restituie stocul
   })
   tx()
-  return getComanda(id)!
+  return comandaSauEroare(id)
+}
+
+// Marchează montajul ca efectuat (sau anulează marcarea, dacă s-a apăsat greșit).
+// Este un FAPT, nu un plan: „data a trecut” nu înseamnă „s-a făcut”, fiindcă
+// montajele se amână. De aceea nu se deduce din data_montaj și nu trece prin
+// formularul comenzii, ci printr-un canal propriu, cu gardă de stare.
+export function marcheazaMontat(id: number, finalizat: boolean): ComandaDetaliu {
+  const db = getDb()
+  const c = db.prepare('SELECT stare FROM comenzi WHERE id=?').get(id) as
+    { stare: StareComanda } | undefined
+  if (!c) throw new Error('Comanda nu există.')
+  if (c.stare !== 'comanda') {
+    throw new Error('Montajul se poate marca doar pe o comandă confirmată.')
+  }
+  db.prepare(
+    `UPDATE comenzi SET montaj_finalizat_la = ${finalizat ? "date('now','localtime')" : 'NULL'},
+      actualizat_la = datetime('now')
+     WHERE id = ?`
+  ).run(id)
+  return comandaSauEroare(id)
 }
 
 // Adaugă o plată. Prima plată pe o ofertă o transformă automat în comandă.
@@ -230,7 +296,7 @@ export function inregistreazaPlata(id: number, suma: number): ComandaDetaliu {
     if (devineComanda) aplicaStocComanda(db, id, -1) // vânzarea scade stocul
   })
   tx()
-  return getComanda(id)!
+  return comandaSauEroare(id)
 }
 
 // Ștergerea e permisă doar pentru oferte (schițe). O comandă confirmată a

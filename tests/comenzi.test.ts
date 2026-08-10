@@ -17,6 +17,7 @@ const PRODUS: ProdusInput = {
   nume: 'Fereastră PVC',
   descriere: null,
   unitate_masura: 'buc',
+  cost_referinta: null,
   pret_referinta: 50000,
   cota_tva: 21,
   track_stock: true,

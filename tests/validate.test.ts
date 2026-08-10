@@ -51,6 +51,7 @@ describe('validare la granița main', () => {
       nume: 'P',
       descriere: null,
       unitate_masura: 'buc',
+      cost_referinta: null,
       pret_referinta: null,
       cota_tva: 21,
       track_stock: false,

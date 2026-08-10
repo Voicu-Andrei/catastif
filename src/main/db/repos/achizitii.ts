@@ -2,6 +2,7 @@ import type { Database } from 'better-sqlite3'
 import { getDb } from '../connection'
 import { ajusteazaStoc } from './stoc'
 import { valideazaAchizitie } from '../validate'
+import { normalizeazaUm } from '@shared/um'
 import type {
   AchizitieCuExtra,
   AchizitieDetaliu,
@@ -22,6 +23,12 @@ const totalLinii = (linii: LinieAchizitieInput[]): number =>
 
 export function listAchizitii(): AchizitieCuExtra[] {
   return getDb().prepare(`${LIST_SQL} ORDER BY a.data DESC, a.id DESC`).all() as AchizitieCuExtra[]
+}
+
+function achizitieSauEroare(id: number): AchizitieDetaliu {
+  const a = getAchizitie(id)
+  if (!a) throw new Error('Achiziția nu mai există.')
+  return a
 }
 
 export function getAchizitie(id: number): AchizitieDetaliu | undefined {
@@ -51,7 +58,7 @@ function insertLinii(
       produs_id: l.produs_id ?? null,
       descriere: l.descriere,
       cantitate: l.cantitate,
-      unitate_masura: l.unitate_masura || 'buc',
+      unitate_masura: normalizeazaUm(l.unitate_masura),
       cost_unitar: l.cost_unitar,
       data: l.data || data
     })
@@ -113,7 +120,7 @@ export function updateAchizitie(id: number, input: AchizitieInput): AchizitieDet
     insertLinii(db, id, input.data, input.linii)
   })
   tx()
-  return getAchizitie(id)!
+  return achizitieSauEroare(id)
 }
 
 export function deleteAchizitie(id: number): void {

@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { CatastifApi } from '@shared/types'
+import type { CatastifApi, InfoActualizare } from '@shared/types'
 
 const api: CatastifApi = {
   app: {
@@ -48,6 +48,8 @@ const api: CatastifApi = {
     accepta: (id) => ipcRenderer.invoke('comenzi:accepta', id),
     anuleaza: (id) => ipcRenderer.invoke('comenzi:anuleaza', id),
     plata: (id, suma) => ipcRenderer.invoke('comenzi:plata', id, suma),
+    marcheazaMontat: (id, finalizat) =>
+      ipcRenderer.invoke('comenzi:marcheazaMontat', id, finalizat),
     delete: (id) => ipcRenderer.invoke('comenzi:delete', id)
   },
   achizitii: {
@@ -78,17 +80,22 @@ const api: CatastifApi = {
   },
   pdf: {
     comanda: (id) => ipcRenderer.invoke('pdf:comanda', id),
-    raport: (an) => ipcRenderer.invoke('pdf:raport', an)
+    raport: (an) => ipcRenderer.invoke('pdf:raport', an),
+    previzualizeazaComanda: (id) => ipcRenderer.invoke('pdf:previzualizeazaComanda', id),
+    previzualizeazaRaport: (an) => ipcRenderer.invoke('pdf:previzualizeazaRaport', an)
   },
   update: {
-    onAvailable: (cb) => {
-      const listener = (_e: unknown, data: { version: string }): void => cb(data)
-      ipcRenderer.on('update:available', listener)
-      return () => ipcRenderer.removeListener('update:available', listener)
+    state: () => ipcRenderer.invoke('update:getStare'),
+    onState: (cb) => {
+      const listener = (_e: unknown, info: InfoActualizare): void => cb(info)
+      ipcRenderer.on('update:stare', listener)
+      return () => ipcRenderer.removeListener('update:stare', listener)
     },
-    pending: () => ipcRenderer.invoke('update:pending'),
     check: () => ipcRenderer.invoke('update:check'),
-    respond: (raspuns) => ipcRenderer.invoke('update:response', raspuns)
+    respond: (raspuns) => ipcRenderer.invoke('update:response', raspuns),
+    cancel: () => ipcRenderer.invoke('update:cancel'),
+    install: (cand) => ipcRenderer.invoke('update:install', cand),
+    clearSkipped: () => ipcRenderer.invoke('update:clearSkipped')
   }
 }
 

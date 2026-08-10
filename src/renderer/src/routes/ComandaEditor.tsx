@@ -12,6 +12,7 @@ import {
   ScrollArea,
   Select,
   Stack,
+  Switch,
   Table,
   Text,
   Textarea,
@@ -31,10 +32,14 @@ import {
   IconTrash,
   IconBan,
   IconDeviceFloppy,
-  IconPrinter
+  IconPrinter,
+  IconEye,
+  IconTool
 } from '@tabler/icons-react'
 import type { Client, ComandaDetaliu, ComandaInput, Produs } from '@shared/types'
 import { calcComanda, calcLinie } from '@shared/calc'
+import { UM_SELECT_DATA, normalizeazaUm } from '@shared/um'
+import { MONTAJ_META } from '../lib/montaj'
 import { baniToLei, leiToBani } from '../lib/money'
 import { formatLei, formatData } from '../lib/format'
 import { STARE_META } from '../lib/stare'
@@ -58,6 +63,12 @@ interface ComandaForm {
   numar: string
   client_id: string | null
   observatii: string
+  // Programarea montajului. Șirul gol înseamnă necompletat; se convertește la
+  // null în payload. `montaj_finalizat_la` NU este aici: e un fapt, marcat
+  // printr-un canal propriu, ca să nu poată fi șters de o simplă salvare.
+  data_montaj: string
+  adresa_montaj: string
+  detalii_montaj: string
   linii: LinieForm[]
 }
 
@@ -81,11 +92,23 @@ export function ComandaEditor(): React.JSX.Element {
   const [produse, setProduse] = useState<Produs[]>([])
   const [comanda, setComanda] = useState<ComandaDetaliu | null>(null)
   const [plataLei, setPlataLei] = useState<number | string>('')
+  // Pe Windows dublu-clicul e un reflex; fără garda asta, fiecare buton care
+  // scrie în baza de date poate fi apăsat de două ori înainte să răspundă.
+  const [seSalveaza, setSeSalveaza] = useState(false)
+  const [seAdaugaPlata, setSeAdaugaPlata] = useState(false)
   const setari = useSetari()
   const cotaImplicita = setari?.cota_tva_implicita ?? 21
 
   const form = useForm<ComandaForm>({
-    initialValues: { numar: '', client_id: null, observatii: '', linii: [emptyLinie()] }
+    initialValues: {
+      numar: '',
+      client_id: null,
+      observatii: '',
+      data_montaj: '',
+      adresa_montaj: '',
+      detalii_montaj: '',
+      linii: [emptyLinie()]
+    }
   })
   useGardaNesalvat(form.isDirty())
 
@@ -109,6 +132,9 @@ export function ComandaEditor(): React.JSX.Element {
       numar: c.numar ?? '',
       client_id: c.client_id != null ? String(c.client_id) : null,
       observatii: c.observatii ?? '',
+      data_montaj: c.data_montaj ?? '',
+      adresa_montaj: c.adresa_montaj ?? '',
+      detalii_montaj: c.detalii_montaj ?? '',
       linii:
         c.linii.length > 0
           ? c.linii.map((l) => ({
@@ -168,14 +194,52 @@ export function ComandaEditor(): React.JSX.Element {
         p.descriere ? `${p.nume} — ${p.descriere}` : p.nume
       )
     }
-    form.setFieldValue(`linii.${idx}.unitate_masura`, p.unitate_masura)
+    form.setFieldValue(`linii.${idx}.unitate_masura`, normalizeazaUm(p.unitate_masura))
     form.setFieldValue(`linii.${idx}.cota_tva`, p.cota_tva)
+
+    // Cele două casete au surse diferite și nu trebuie confundate:
+    //   Preț  = cât cerem de la client  -> pret_referinta (prețul de vânzare)
+    //   Cost  = cât plătim noi          -> cost_referinta, iar dacă produsul nu
+    //           are unul, ultimul cost real dintr-o achiziție.
     if (p.pret_referinta != null && (cur.pret_lei === '' || Number(cur.pret_lei) === 0)) {
       form.setFieldValue(`linii.${idx}.pret_lei`, baniToLei(p.pret_referinta))
     }
-    // Pre-completează costul cu ultimul cost de achiziție, dacă există.
-    if (p.ultim_cost != null && (cur.cost_lei === '' || Number(cur.cost_lei) === 0)) {
-      form.setFieldValue(`linii.${idx}.cost_lei`, baniToLei(p.ultim_cost))
+    const cost = p.cost_referinta ?? p.ultim_cost
+    if (cost != null && (cur.cost_lei === '' || Number(cur.cost_lei) === 0)) {
+      form.setFieldValue(`linii.${idx}.cost_lei`, baniToLei(cost))
+    }
+  }
+
+  // Montajul intră în comandă ca linie obișnuită — așa primește cost, preț, cotă
+  // TVA, profit și poziție în PDF fără niciun cod nou. Butonul îl adaugă PRIN
+  // produsul din catalog, nu ca text liber, ca să preia costul de referință;
+  // altfel linia ar rămâne cu cost 0 și ar raporta marjă 100%.
+  const produsMontaj = useMemo(
+    () => produse.find((p) => p.nume.trim().toLowerCase() === 'montaj') ?? null,
+    [produse]
+  )
+
+  function adaugaMontaj(): void {
+    if (!produsMontaj) return
+    form.insertListItem('linii', emptyLinie(cotaImplicita))
+    // insertListItem e sincron pe valorile formularului, deci indexul noii linii
+    // este ultimul de acum.
+    selecteazaProdus(form.getValues().linii.length - 1, String(produsMontaj.id))
+  }
+
+  async function comutaMontat(finalizat: boolean): Promise<void> {
+    if (comandaId == null) return
+    try {
+      incarcaComanda(await window.api.comenzi.marcheazaMontat(comandaId, finalizat))
+      notifications.show({
+        color: 'teal',
+        title: finalizat ? 'Montaj marcat ca efectuat' : 'Marcaj anulat',
+        message: finalizat
+          ? 'Comanda nu mai apare în lista de montaje de făcut.'
+          : 'Comanda revine în lista de montaje de făcut.'
+      })
+    } catch (err) {
+      notifications.show({ color: 'red', title: 'Eroare', message: mesajEroare(err) })
     }
   }
 
@@ -196,12 +260,18 @@ export function ComandaEditor(): React.JSX.Element {
     return {
       numar: form.values.numar.trim() || null,
       client_id: form.values.client_id ? Number(form.values.client_id) : null,
+      data_montaj: form.values.data_montaj.trim() || null,
+      adresa_montaj: form.values.adresa_montaj.trim() || null,
+      detalii_montaj: form.values.detalii_montaj.trim() || null,
       observatii: form.values.observatii.trim() || null,
       linii
     }
   }
 
   async function salveaza(): Promise<void> {
+    // Dublu-clic pe „Salvează” la o ofertă nouă crea două oferte identice, cu
+    // numere diferite — descoperite abia mai târziu, umflate în rapoarte.
+    if (seSalveaza) return
     const payload = construiestePayload()
     if (payload.linii.length === 0) {
       notifications.show({
@@ -211,6 +281,7 @@ export function ComandaEditor(): React.JSX.Element {
       })
       return
     }
+    setSeSalveaza(true)
     try {
       if (esteNou) {
         const c = await window.api.comenzi.create(payload)
@@ -224,6 +295,8 @@ export function ComandaEditor(): React.JSX.Element {
       }
     } catch (err) {
       notifications.show({ color: 'red', title: 'Eroare', message: mesajEroare(err) })
+    } finally {
+      setSeSalveaza(false)
     }
   }
 
@@ -322,6 +395,8 @@ export function ComandaEditor(): React.JSX.Element {
   }
 
   async function trimitePlata(suma: number): Promise<void> {
+    if (seAdaugaPlata) return
+    setSeAdaugaPlata(true)
     try {
       const c = await window.api.comenzi.plata(comandaId!, leiToBani(suma))
       incarcaComanda(c)
@@ -333,6 +408,8 @@ export function ComandaEditor(): React.JSX.Element {
       })
     } catch (err) {
       notifications.show({ color: 'red', title: 'Eroare', message: mesajEroare(err) })
+    } finally {
+      setSeAdaugaPlata(false)
     }
   }
 
@@ -340,6 +417,15 @@ export function ComandaEditor(): React.JSX.Element {
     const r = await window.api.pdf.comanda(comandaId!)
     if (!r.ok && r.mesaj && r.mesaj !== 'Export anulat.') {
       notifications.show({ color: 'red', title: 'Eroare PDF', message: r.mesaj })
+    }
+  }
+
+  // Previzualizarea deschide documentul într-o fereastră proprie; nu scrie nimic
+  // pe disc în afara unui fișier temporar, șters la închiderea ferestrei.
+  async function previzualizeazaPdf(): Promise<void> {
+    const r = await window.api.pdf.previzualizeazaComanda(comandaId!)
+    if (!r.ok && r.mesaj) {
+      notifications.show({ color: 'red', title: 'Eroare previzualizare', message: r.mesaj })
     }
   }
 
@@ -408,20 +494,33 @@ export function ComandaEditor(): React.JSX.Element {
             </Button>
           )}
           {!esteNou && (
-            <Button
-              variant="default"
-              leftSection={<IconPrinter size={18} />}
-              onClick={tiparestePdf}
-            >
-              PDF
-            </Button>
+            <>
+              <Button
+                variant="default"
+                leftSection={<IconEye size={18} />}
+                onClick={previzualizeazaPdf}
+              >
+                Vezi PDF
+              </Button>
+              <Button
+                variant="default"
+                leftSection={<IconPrinter size={18} />}
+                onClick={tiparestePdf}
+              >
+                Salvează PDF
+              </Button>
+            </>
           )}
           {comanda?.stare === 'anulata' ? (
             <Text c="dimmed" size="sm">
               Comandă anulată — doar consultare
             </Text>
           ) : (
-            <Button leftSection={<IconDeviceFloppy size={18} />} onClick={salveaza}>
+            <Button
+              leftSection={<IconDeviceFloppy size={18} />}
+              onClick={salveaza}
+              loading={seSalveaza}
+            >
               Salvează
             </Button>
           )}
@@ -451,7 +550,12 @@ export function ComandaEditor(): React.JSX.Element {
 
           <Paper withBorder radius="lg" p="lg">
             <Group justify="space-between" mb="sm">
-              <Text fw={600}>Linii</Text>
+              <Group gap={6}>
+                <Text fw={600}>Linii</Text>
+                <Text size="xs" c="dimmed">
+                  — costul este cât plătești tu, prețul este cât încasezi de la client
+                </Text>
+              </Group>
               <Button
                 size="xs"
                 variant="light"
@@ -462,13 +566,14 @@ export function ComandaEditor(): React.JSX.Element {
               </Button>
             </Group>
             <ScrollArea>
-              <Table verticalSpacing="xs" horizontalSpacing="xs" miw={820}>
+              <Table verticalSpacing="xs" horizontalSpacing="xs" miw={940}>
                 <Table.Thead>
                   <Table.Tr>
                     <Table.Th style={{ minWidth: 260 }}>Descriere</Table.Th>
                     <Table.Th w={80}>Cant.</Table.Th>
-                    <Table.Th w={110}>Cost/buc</Table.Th>
-                    <Table.Th w={110}>Preț/buc</Table.Th>
+                    <Table.Th w={90}>U.M.</Table.Th>
+                    <Table.Th w={120}>Cost unitar</Table.Th>
+                    <Table.Th w={120}>Preț unitar</Table.Th>
                     <Table.Th w={90}>TVA</Table.Th>
                     <Table.Th w={110} ta="right">
                       Profit
@@ -504,9 +609,21 @@ export function ComandaEditor(): React.JSX.Element {
                           <NumberInput
                             size="xs"
                             min={0}
+                            decimalSeparator=","
                             hideControls
                             key={form.key(`linii.${idx}.cantitate`)}
                             {...form.getInputProps(`linii.${idx}.cantitate`)}
+                          />
+                        </Table.Td>
+                        <Table.Td>
+                          <Select
+                            size="xs"
+                            data={UM_SELECT_DATA}
+                            allowDeselect={false}
+                            value={normalizeazaUm(linii[idx].unitate_masura)}
+                            onChange={(v) =>
+                              form.setFieldValue(`linii.${idx}.unitate_masura`, normalizeazaUm(v))
+                            }
                           />
                         </Table.Td>
                         <Table.Td>
@@ -514,6 +631,7 @@ export function ComandaEditor(): React.JSX.Element {
                             size="xs"
                             min={0}
                             decimalScale={2}
+                            decimalSeparator=","
                             hideControls
                             key={form.key(`linii.${idx}.cost_lei`)}
                             {...form.getInputProps(`linii.${idx}.cost_lei`)}
@@ -524,6 +642,7 @@ export function ComandaEditor(): React.JSX.Element {
                             size="xs"
                             min={0}
                             decimalScale={2}
+                            decimalSeparator=","
                             hideControls
                             key={form.key(`linii.${idx}.pret_lei`)}
                             {...form.getInputProps(`linii.${idx}.pret_lei`)}
@@ -570,11 +689,79 @@ export function ComandaEditor(): React.JSX.Element {
 
             <Textarea
               label="Observații"
+              description="Se tipăresc pe documentul clientului."
               mt="md"
               autosize
               minRows={2}
               {...form.getInputProps('observatii')}
             />
+          </Paper>
+
+          {/* Montajul: programarea stă pe comandă, banii stau pe o linie. */}
+          <Paper withBorder radius="lg" p="lg" mt="lg">
+            <Group justify="space-between" mb="sm">
+              <Group gap={8}>
+                <IconTool size={18} />
+                <Text fw={600}>Montaj</Text>
+                {comanda && comanda.stare_montaj !== 'nespecificat' && (
+                  <Badge variant="light" color={MONTAJ_META[comanda.stare_montaj].color}>
+                    {MONTAJ_META[comanda.stare_montaj].label}
+                  </Badge>
+                )}
+              </Group>
+              {produsMontaj && comanda?.stare !== 'anulata' && (
+                <Button size="xs" variant="light" onClick={adaugaMontaj}>
+                  Adaugă montaj pe comandă
+                </Button>
+              )}
+            </Group>
+
+            <Grid>
+              <Grid.Col span={{ base: 12, sm: 4 }}>
+                <TextInput
+                  type="date"
+                  label="Data montaj"
+                  description="Ziua în care mergeți la client."
+                  {...form.getInputProps('data_montaj')}
+                />
+              </Grid.Col>
+              <Grid.Col span={{ base: 12, sm: 8 }}>
+                <TextInput
+                  label="Adresa de montaj"
+                  placeholder="Doar dacă diferă de adresa clientului"
+                  {...form.getInputProps('adresa_montaj')}
+                />
+              </Grid.Col>
+            </Grid>
+
+            <Textarea
+              label="Detalii montaj"
+              description="Notă internă pentru echipă — NU apare pe documentul clientului."
+              placeholder="Etaj 4, fără lift. Cheia la vecin. Câine în curte."
+              mt="md"
+              autosize
+              minRows={2}
+              {...form.getInputProps('detalii_montaj')}
+            />
+
+            {!esteNou && comanda?.stare === 'comanda' && (
+              <Switch
+                mt="md"
+                label="Montaj efectuat"
+                description={
+                  comanda.montaj_finalizat_la
+                    ? `Marcat la ${formatData(comanda.montaj_finalizat_la)}`
+                    : 'Bifează după ce echipa a terminat lucrarea la client.'
+                }
+                checked={comanda.montaj_finalizat_la != null}
+                onChange={(e) => comutaMontat(e.currentTarget.checked)}
+              />
+            )}
+            {!esteNou && comanda?.stare === 'oferta' && (
+              <Text size="xs" c="dimmed" mt="md">
+                Montajul se poate marca efectuat doar după ce oferta devine comandă.
+              </Text>
+            )}
           </Paper>
         </Grid.Col>
 
@@ -630,11 +817,17 @@ export function ComandaEditor(): React.JSX.Element {
                       placeholder="0,00"
                       min={0}
                       decimalScale={2}
+                      decimalSeparator=","
+
                       value={plataLei}
                       onChange={setPlataLei}
                       style={{ flex: 1 }}
                     />
-                    <Button leftSection={<IconCash size={18} />} onClick={inregistreazaPlata}>
+                    <Button
+                      leftSection={<IconCash size={18} />}
+                      onClick={inregistreazaPlata}
+                      loading={seAdaugaPlata}
+                    >
                       Adaugă
                     </Button>
                   </Group>

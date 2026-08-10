@@ -3,6 +3,10 @@
 
 export type TipClient = 'firma' | 'persoana'
 export type StareComanda = 'oferta' | 'comanda' | 'anulata'
+// Starea montajului este ORTOGONALĂ stării comerciale: o comandă poate fi
+// confirmată-și-nemontată, confirmată-și-montată, sau anulată indiferent de
+// montaj. De aceea nu este o a patra valoare în StareComanda. Se derivă în SQL.
+export type StareMontaj = 'nespecificat' | 'neprogramat' | 'programat' | 'intarziat' | 'montat'
 export type EntitateTip = 'produs' | 'client' | 'furnizor' | 'comanda' | 'achizitie'
 export type StareAnaf = 'placeholder' | 'de_trimis' | 'trimisa' | 'validata' | 'respinsa'
 
@@ -52,7 +56,8 @@ export interface Produs {
   nume: string
   descriere: string | null
   unitate_masura: string
-  pret_referinta: number | null // bani
+  cost_referinta: number | null // bani — cât plătim noi pe unitate (achiziție)
+  pret_referinta: number | null // bani — cât încasăm de la client (vânzare)
   cota_tva: number
   track_stock: boolean
   stoc_curent: number
@@ -110,6 +115,11 @@ export interface Comanda {
   total: number
   achitat: number
   observatii: string | null
+  // --- Montaj (programare; banii montajului stau pe o linie obișnuită) ---
+  data_montaj: string | null // AAAA-LL-ZZ — ziua programată
+  adresa_montaj: string | null // dacă diferă de adresa clientului
+  detalii_montaj: string | null // notă INTERNĂ — nu se tipărește clientului
+  montaj_finalizat_la: string | null // fapt înregistrat, nu dedus din dată
   factura_id: number | null
   creat_la: string
   actualizat_la: string
@@ -118,6 +128,7 @@ export interface Comanda {
 // Comandă cu informații derivate pentru afișare în liste
 export interface ComandaCuExtra extends Comanda {
   client_nume: string | null
+  stare_montaj: StareMontaj // derivat în SQL din stare + cele două date
   rest_de_plata: number // bani (total - achitat)
   profit: number // bani
 }
@@ -140,6 +151,12 @@ export interface ComandaInput {
   numar: string | null
   client_id: number | null
   observatii: string | null
+  // Opționale: o comandă fără montaj le lasă pe toate deoparte.
+  // `montaj_finalizat_la` NU face parte din formular — este un fapt, ca
+  // data_acceptare, și se scrie doar prin comenzi:marcheazaMontat.
+  data_montaj?: string | null
+  adresa_montaj?: string | null
+  detalii_montaj?: string | null
   linii: LinieComandaInput[]
 }
 
@@ -233,6 +250,8 @@ export interface DashboardData {
   de_incasat: number // bani
   profit_luna: number // bani
   stoc_scazut: number
+  montaje_saptamana: number // programate în următoarele 7 zile (include întârziatele)
+  montaje_intarziate: number // data a trecut și nimeni nu le-a marcat efectuate
   activitate: ActivitateItem[]
 }
 
@@ -278,12 +297,27 @@ export interface RaportData {
 
 export type ExportFormat = 'csv' | 'xlsx'
 
-// Rezultatul verificării manuale de actualizări (butonul din Setări).
-export interface RezultatVerificare {
-  stare: 'disponibila' | 'la_zi' | 'eroare' | 'dezvoltare'
-  versiuneCurenta: string
-  versiune?: string // versiunea disponibilă, când stare = 'disponibila'
-  mesaj?: string // detaliul erorii, când stare = 'eroare'
+// Starea fluxului de actualizare, trimisă din main către interfață. Interfața
+// nu ține minte nimic: la montare cere starea curentă (`update.state()`), apoi
+// ascultă schimbările. Așa un renderer care pornește mai încet decât prima
+// verificare nu pierde anunțul.
+export type StareActualizare =
+  | { faza: 'inactiv' }
+  | { faza: 'verificare' }
+  | { faza: 'disponibila'; versiune: string }
+  | { faza: 'descarcare'; versiune: string; procent: number }
+  | { faza: 'descarcata'; versiune: string }
+  | { faza: 'la_zi' }
+  | { faza: 'eroare'; mesaj: string }
+
+// Faza este trecătoare (fereastra o „consumă” închizându-se), dar două fapte
+// trebuie să rămână vizibile în Setări oricât de mult după: ce versiune a fost
+// pusă deoparte și dacă există una descărcată, gata de instalat. Amândouă sunt
+// ținute în procesul principal — interfața nu le mai ghicește din formular.
+export interface InfoActualizare {
+  stare: StareActualizare
+  versiuneIgnorata: string | null
+  versiuneDescarcata: string | null
 }
 
 // ---------------------------------------------------------------------------
@@ -343,6 +377,7 @@ export interface CatastifApi {
     accepta(id: number): Promise<ComandaDetaliu>
     anuleaza(id: number): Promise<ComandaDetaliu>
     plata(id: number, suma: number): Promise<ComandaDetaliu>
+    marcheazaMontat(id: number, finalizat: boolean): Promise<ComandaDetaliu>
     delete(id: number): Promise<void>
   }
   achizitii: {
@@ -376,15 +411,27 @@ export interface CatastifApi {
     ): Promise<BackupResult>
   }
   pdf: {
+    // Salvează pe disc (deschide dialogul „Salvează ca”).
     comanda(id: number): Promise<BackupResult>
     raport(an: number): Promise<BackupResult>
+    // Deschide documentul într-o fereastră de previzualizare, fără a scrie nimic
+    // în documentele utilizatorului.
+    previzualizeazaComanda(id: number): Promise<BackupResult>
+    previzualizeazaRaport(an: number): Promise<BackupResult>
   }
   update: {
-    onAvailable(cb: (info: { version: string }) => void): () => void
-    /** Actualizarea deja găsită, dacă interfața s-a montat după anunț. */
-    pending(): Promise<{ version: string } | null>
-    /** Verificare la cerere, cu rezultat vizibil. */
-    check(): Promise<RezultatVerificare>
+    // Starea curentă, cerută la montarea interfeței (nu pierde anunțuri timpurii).
+    state(): Promise<InfoActualizare>
+    onState(cb: (info: InfoActualizare) => void): () => void
+    // Verificare pornită manual din Setări.
+    check(): Promise<void>
+    // Răspunsul la „Actualizare disponibilă”: descarcă / mai târziu / sari peste.
     respond(raspuns: 'da' | 'nu' | 'skip'): Promise<void>
+    // Oprește o descărcare în curs (de exemplu una blocată).
+    cancel(): Promise<void>
+    // După ce descărcarea s-a terminat: repornește acum sau la următoarea închidere.
+    install(cand: 'acum' | 'la_inchidere'): Promise<void>
+    // Anulează un „Nu pentru această versiune” dat din greșeală.
+    clearSkipped(): Promise<void>
   }
 }
